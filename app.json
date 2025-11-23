@@ -8,6 +8,7 @@
     "scheme": "tisuteacherapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "entryPoint": "./app/App.tsx",
     "ios": {
       "supportsTablet": true
     },
@@ -26,7 +27,6 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
       [
         "expo-splash-screen",
         {
@@ -41,8 +41,13 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
+      "typedRoutes": false,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8feaaed0-e0c8-461a-b9ef-21cc3d85f302"
+      }
     }
   }
 }
