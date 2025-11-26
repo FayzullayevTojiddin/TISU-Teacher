@@ -10,6 +10,8 @@ interface InputFieldProps extends Pick<
   onChangeText: (text: string) => void;
   secure?: boolean;
   inputRef?: React.RefObject<TextInput | null>;
+  placeholder?: string;
+  editable?: boolean;
 }
 
 const InputField: React.FC<InputFieldProps> = ({
@@ -38,6 +40,7 @@ const InputField: React.FC<InputFieldProps> = ({
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}
         keyboardType={secure ? 'default' : 'default'}
+        
       />
     </View>
   );

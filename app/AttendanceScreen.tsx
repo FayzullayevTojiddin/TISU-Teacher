@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { mockStudents, mockTopics } from '../data/mockStudents';
+import { mockStudents } from '../data/mockStudents';
 import { RootStackParamList } from '../types/navigation';
 
 type AttendanceScreenRouteProp = RouteProp<RootStackParamList, 'Attendance'>;
@@ -21,25 +20,24 @@ type AttendanceScreenNavigationProp = NativeStackNavigationProp<
   'Attendance'
 >;
 
+type AttendanceStatus = boolean | null;
+
 const AttendanceScreen: React.FC = () => {
   const navigation = useNavigation<AttendanceScreenNavigationProp>();
   const route = useRoute<AttendanceScreenRouteProp>();
   const { lesson } = route.params;
 
-  // Filter students by group
   const students = mockStudents.filter(s => s.group === lesson.group);
-  const topics = mockTopics[lesson.subject] || [];
 
-  const [selectedTopic, setSelectedTopic] = useState(topics[0] || '');
-  const [attendance, setAttendance] = useState<Record<string, boolean>>(
+  const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>(
     students.reduce((acc, student) => ({ ...acc, [student.id]: true }), {})
   );
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
-  const toggleAttendance = (studentId: string) => {
+  const toggleAttendance = (studentId: string, status: boolean) => {
     setAttendance(prev => ({
       ...prev,
-      [studentId]: !prev[studentId],
+      [studentId]: status,
     }));
   };
 
@@ -62,12 +60,12 @@ const AttendanceScreen: React.FC = () => {
   };
 
   const handleSave = () => {
-    const presentCount = Object.values(attendance).filter(Boolean).length;
-    const absentCount = students.length - presentCount;
+    const presentCount = Object.values(attendance).filter(status => status === true).length;
+    const absentCount = Object.values(attendance).filter(status => status === false).length;
 
     Alert.alert(
       'Davomat saqlandi',
-      `Mavzu: ${selectedTopic}\nKeldi: ${presentCount}\nKelmadi: ${absentCount}`,
+      `Keldi: ${presentCount}\nKelmadi: ${absentCount}`,
       [{ text: 'OK', onPress: () => navigation.goBack() }]
     );
   };
@@ -86,26 +84,32 @@ const AttendanceScreen: React.FC = () => {
       <ScrollView style={styles.content}>
         {/* Lesson Info */}
         <View style={styles.lessonInfo}>
-          <Text style={styles.infoText}>
-            {lesson.start} - {lesson.end} • Xona {lesson.room}
-          </Text>
-          <Text style={styles.infoText}>Guruh: {lesson.group}</Text>
-          <Text style={styles.infoText}>Turi: {lesson.type}</Text>
-        </View>
+          <View style={styles.infoGrid}>
+            {/* Vaqt */}
+            <View style={[styles.infoCell, styles.infoCellWithBorder]}>
+              <Ionicons name="time-outline" size={24} color="#0B74FF" />
+              <Text style={styles.infoText}>
+                {lesson.start} - {lesson.end}
+              </Text>
+            </View>
 
-        {/* Topic Selector */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mavzu</Text>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={selectedTopic}
-              onValueChange={setSelectedTopic}
-              style={styles.picker}
-            >
-              {topics.map((topic, index) => (
-                <Picker.Item key={index} label={topic} value={topic} />
-              ))}
-            </Picker>
+            {/* Xona */}
+            <View style={[styles.infoCell, styles.infoCellWithBorder]}>
+              <Ionicons name="location-outline" size={24} color="#0B74FF" />
+              <Text style={styles.infoText}>{lesson.room}</Text>
+            </View>
+
+            {/* Guruh */}
+            <View style={[styles.infoCell, styles.infoCellWithBorder]}>
+              <Ionicons name="people-outline" size={24} color="#0B74FF" />
+              <Text style={styles.infoText}>{lesson.group}</Text>
+            </View>
+
+            {/* Turi */}
+            <View style={styles.infoCell}>
+              <Ionicons name="book-outline" size={24} color="#0B74FF" />
+              <Text style={styles.infoText}>{lesson.type}</Text>
+            </View>
           </View>
         </View>
 
@@ -114,23 +118,49 @@ const AttendanceScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>
             Talabalar ro'yxati ({students.length})
           </Text>
-          {students.map(student => (
-            <TouchableOpacity
-              key={student.id}
-              style={styles.studentRow}
-              onPress={() => toggleAttendance(student.id)}
-              activeOpacity={0.7}
-            >
+          {students.map((student, index) => (
+            <View key={student.id} style={styles.studentRow}>
+              <Text style={styles.studentNumber}>{index + 1}.</Text>
               <Text style={styles.studentName}>{student.name}</Text>
-              <View style={[
-                styles.checkbox,
-                attendance[student.id] && styles.checkboxChecked
-              ]}>
-                {attendance[student.id] && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
+              
+              <View style={styles.buttonGroup}>
+                {/* Kelmadi tugmasi - chap tomonda */}
+                <TouchableOpacity
+                  style={[
+                    styles.statusButton,
+                    styles.absentButton,
+                    attendance[student.id] === false && styles.absentButtonActive
+                  ]}
+                  onPress={() => toggleAttendance(student.id, false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.statusIcon,
+                    attendance[student.id] === false && styles.statusIconActive
+                  ]}>
+                    ✕
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Keldi tugmasi - o'ng tomonda */}
+                <TouchableOpacity
+                  style={[
+                    styles.statusButton,
+                    styles.presentButton,
+                    attendance[student.id] === true && styles.presentButtonActive
+                  ]}
+                  onPress={() => toggleAttendance(student.id, true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.statusIcon,
+                    attendance[student.id] === true && styles.statusIconActive
+                  ]}>
+                    ✓
+                  </Text>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
 
@@ -197,10 +227,27 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 8,
   },
+  infoGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  infoCell: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  infoCellWithBorder: {
+    borderRightWidth: 1,
+    borderColor: '#E0E0E0',
+  },
   infoText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '600',
+    textAlign: 'center',
   },
   section: {
     backgroundColor: '#fff',
@@ -213,44 +260,59 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     color: '#333',
   },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  picker: {
-    height: 50,
-  },
   studentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+  },
+  studentNumber: {
+    fontSize: 15,
+    color: '#999',
+    fontWeight: '600',
+    marginRight: 8,
+    minWidth: 25,
   },
   studentName: {
     fontSize: 15,
     color: '#333',
+    flex: 1,
   },
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    borderRadius: 6,
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  statusButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
   },
-  checkboxChecked: {
+  presentButton: {
     borderColor: '#4CAF50',
+    backgroundColor: '#fff',
+  },
+  presentButtonActive: {
     backgroundColor: '#4CAF50',
   },
-  checkmark: {
-    color: '#fff',
-    fontSize: 18,
+  absentButton: {
+    borderColor: '#F44336',
+    backgroundColor: '#fff',
+  },
+  absentButtonActive: {
+    backgroundColor: '#F44336',
+  },
+  statusIcon: {
+    fontSize: 16,
     fontWeight: 'bold',
+    color: '#999',
+  },
+  statusIconActive: {
+    color: '#fff',
   },
   photoButton: {
     flexDirection: 'row',

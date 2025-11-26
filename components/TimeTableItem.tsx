@@ -11,11 +11,9 @@ const typeColors: Record<string, string> = {
   Seminar: '#1E90FF',
 };
 
-// Navigation type ni to'g'ri aniqlash
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const TimeTableItem: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
-  // Generic type bilan useNavigation
   const navigation = useNavigation<NavigationProp>();
 
   const handlePress = () => {
