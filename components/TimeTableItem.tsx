@@ -1,9 +1,20 @@
+// components/TimeTableItem.tsx
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Lesson } from '../data/mockTimetable';
 import { RootStackParamList } from '../types/navigation';
+
+export type UiLesson = {
+  id: string;
+  subject: string;
+  type: string;
+  start: string;
+  end?: string;
+  room?: string;
+  group?: string;
+  raw?: any;
+};
 
 const typeColors: Record<string, string> = {
   "Ma'ruza": '#FF8C42',
@@ -13,12 +24,12 @@ const typeColors: Record<string, string> = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const TimeTableItem: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
+const TimeTableItem: React.FC<{ lesson: UiLesson }> = ({ lesson }) => {
   const navigation = useNavigation<NavigationProp>();
 
   const handlePress = () => {
-    navigation.navigate('Attendance', { lesson });
-  };
+  navigation.navigate('Attendance', { lesson: lesson.raw ?? lesson });
+};
 
   return (
     <TouchableOpacity 
@@ -26,13 +37,11 @@ const TimeTableItem: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      {/* Time section */}
       <View style={styles.timeWrap}>
         <Text style={styles.timeText}>{lesson.start}</Text>
-        <Text style={styles.timeSmall}>{lesson.end}</Text>
+        {lesson.end ? <Text style={styles.timeSmall}>{lesson.end}</Text> : null}
       </View>
 
-      {/* Info section */}
       <View style={styles.infoWrap}>
         <View style={styles.rowTop}>
           <Text style={styles.subject}>{lesson.subject}</Text>
@@ -40,7 +49,7 @@ const TimeTableItem: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
           <View
             style={[
               styles.typeBadge,
-              { backgroundColor: typeColors[lesson.type] || '#ccc' },
+              { backgroundColor: typeColors[lesson.type] || '#999' },
             ]}
           >
             <Text style={styles.typeText}>{lesson.type}</Text>
@@ -48,7 +57,7 @@ const TimeTableItem: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
         </View>
 
         <Text style={styles.meta}>
-          {lesson.group} • Xona {lesson.room}
+          {lesson.group ?? '—'} • Xona {lesson.room ?? '—'}
         </Text>
       </View>
     </TouchableOpacity>

@@ -1,74 +1,51 @@
-import React, { useState } from 'react';
+// components/AddLessonForm.tsx
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { createLesson } from '../api/lessons';
+import {
+  getFakultets,
+  getLessonTypes,
+  getParas,
+  Option,
+  searchGroups,
+  searchRooms,
+  searchSubjects,
+} from '../api/searchs';
 
 interface AddLessonFormProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (lesson: {
-    faculty: string;
-    room: string;
-    group: string;
-    subject: string;
-    type: string;
-    para: number;
-  }) => void;
+  onSubmit: (lesson: any) => void;
   currentDate: string;
+  isoDate?: string;
 }
-
-// Mock data
-const FACULTIES = ['Informatika', 'Matematika', 'Fizika', 'Kimyo'];
-
-const ROOMS_BY_FACULTY: Record<string, string[]> = {
-  Informatika: ['101-A', '102-B', '103-C', '104-A'],
-  Matematika: ['201-A', '202-B', '203-C'],
-  Fizika: ['301-A', '302-B', '303-C', '304-D'],
-  Kimyo: ['401-A', '402-B', '403-C'],
-};
-
-const GROUPS = ['20-guruh', '21-guruh', '22-guruh', '23-guruh', '24-guruh'];
-
-const SUBJECTS = [
-  'Matematika',
-  'Ingliz tili',
-  'Fizika',
-  'Dasturlash',
-  "Ma'lumotlar tuzilmasi",
-  'Web dasturlash',
-  'Kimyo',
-  'Tarix',
-];
-
-const LESSON_TYPES = ["Ma'ruza", 'Amaliy', 'Seminar'];
-
-const LESSON_TIMES = [
-  { para: 1, start: '08:30', end: '09:50' },
-  { para: 2, start: '10:00', end: '11:20' },
-  { para: 3, start: '11:40', end: '13:00' },
-  { para: 4, start: '13:30', end: '14:50' },
-  { para: 5, start: '15:00', end: '16:20' },
-];
 
 const AddLessonForm: React.FC<AddLessonFormProps> = ({
   visible,
   onClose,
   onSubmit,
   currentDate,
+  isoDate,
 }) => {
   const [selectedFaculty, setSelectedFaculty] = useState<string>('');
-  const [selectedRoom, setSelectedRoom] = useState<string>('');
-  const [selectedGroup, setSelectedGroup] = useState<string>('');
-  const [selectedSubject, setSelectedSubject] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<string>('');
-  const [selectedPara, setSelectedPara] = useState<number | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<Option | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<Option | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<Option | null>(null);
+  const [selectedType, setSelectedType] = useState<Option | null>(null);
+  const [selectedPara, setSelectedPara] = useState<Option | null>(null);
+  const [imageFile, setImageFile] = useState<any | null>(null);
 
-  // Dropdown visibility states
   const [showFacultyDropdown, setShowFacultyDropdown] = useState(false);
   const [showRoomDropdown, setShowRoomDropdown] = useState(false);
   const [showGroupDropdown, setShowGroupDropdown] = useState(false);
@@ -76,232 +53,273 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showParaDropdown, setShowParaDropdown] = useState(false);
 
+  const [faculties, setFaculties] = useState<string[]>([]);
+  const [paras, setParas] = useState<Option[]>([]);
+  const [lessonTypes, setLessonTypes] = useState<Option[]>([]);
+
+  const [groupsList, setGroupsList] = useState<Option[]>([]);
+  const [roomsList, setRoomsList] = useState<Option[]>([]);
+  const [subjectsList, setSubjectsList] = useState<Option[]>([]);
+
+  const [groupQuery, setGroupQuery] = useState('');
+  const [subjectQuery, setSubjectQuery] = useState('');
+  const [roomQuery, setRoomQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+
+  const groupDebounce = useRef<any>(0);
+  const subjectDebounce = useRef<any>(0);
+  const roomDebounce = useRef<any>(0);
+
   const resetForm = () => {
     setSelectedFaculty('');
-    setSelectedRoom('');
-    setSelectedGroup('');
-    setSelectedSubject('');
-    setSelectedType('');
+    setSelectedRoom(null);
+    setSelectedGroup(null);
+    setSelectedSubject(null);
+    setSelectedType(null);
     setSelectedPara(null);
+    setImageFile(null);
+    setGroupQuery('');
+    setSubjectQuery('');
+    setRoomQuery('');
   };
 
-  const handleClose = () => {
-    resetForm();
-    onClose();
+  useEffect(() => {
+    if (!visible) {
+      resetForm();
+      return;
+    }
+    (async () => {
+      try {
+        setLoading(true);
+        const fArr = await getFakultets();
+        setFaculties(fArr);
+        const pArr = await getParas();
+        setParas(pArr);
+        const tArr = await getLessonTypes();
+        setLessonTypes(tArr);
+      } catch (err: any) {
+        Alert.alert('Xato', err?.message ?? 'Ma\'lumotlarni olishda xato');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [visible]);
+
+  useEffect(() => {
+    const q = groupQuery.trim();
+    clearTimeout(groupDebounce.current);
+    groupDebounce.current = setTimeout(async () => {
+      try {
+        setLoadingGroups(true);
+        const list = await searchGroups(q || undefined);
+        setGroupsList(list);
+      } catch (err) {
+        // silent
+      } finally {
+        setLoadingGroups(false);
+      }
+    }, 450);
+    return () => clearTimeout(groupDebounce.current);
+  }, [groupQuery]);
+
+  useEffect(() => {
+    const q = subjectQuery.trim();
+    clearTimeout(subjectDebounce.current);
+    subjectDebounce.current = setTimeout(async () => {
+      try {
+        setLoadingSubjects(true);
+        const list = await searchSubjects(q || undefined);
+        setSubjectsList(list);
+      } catch (err) {
+      } finally {
+        setLoadingSubjects(false);
+      }
+    }, 450);
+    return () => clearTimeout(subjectDebounce.current);
+  }, [subjectQuery]);
+
+  useEffect(() => {
+    const q = roomQuery.trim();
+    clearTimeout(roomDebounce.current);
+    roomDebounce.current = setTimeout(async () => {
+      try {
+        setLoadingRooms(true);
+        const list = await searchRooms(q || undefined, selectedFaculty || undefined);
+        setRoomsList(list);
+      } catch (err) {
+      } finally {
+        setLoadingRooms(false);
+      }
+    }, 300);
+    return () => clearTimeout(roomDebounce.current);
+  }, [roomQuery, selectedFaculty]);
+
+  const openGroupDropdown = () => {
+    setShowGroupDropdown(true);
+    if (!groupsList.length) setGroupQuery('');
+  };
+  const openSubjectDropdown = () => {
+    setShowSubjectDropdown(true);
+    if (!subjectsList.length) setSubjectQuery('');
+  };
+  const openRoomDropdown = () => {
+    setShowRoomDropdown(true);
+    if (!roomsList.length) setRoomQuery('');
   };
 
-  const handleSubmit = () => {
-    if (!selectedFaculty || !selectedRoom || !selectedGroup || !selectedSubject || !selectedType || selectedPara === null) {
-      alert("Iltimos, barcha maydonlarni to'ldiring!");
+  const handleSubmit = async () => {
+    if (!selectedFaculty || !selectedRoom || !selectedGroup || !selectedSubject || !selectedType || !selectedPara) {
+      Alert.alert('Xato', "Iltimos, barcha maydonlarni to'ldiring!");
       return;
     }
 
-    onSubmit({
-      faculty: selectedFaculty,
-      room: selectedRoom,
-      group: selectedGroup,
-      subject: selectedSubject,
-      type: selectedType,
-      para: selectedPara,
-    });
+    const payload: any = {
+      group_id: selectedGroup.id,
+      room_id: selectedRoom.id,
+      date: isoDate ?? currentDate,
+      fakultet: selectedFaculty,
+      subject_name: selectedSubject.name,
+      time_at: selectedPara.name,
+    };
 
-    resetForm();
+    if (imageFile) payload.image = imageFile;
+
+    try {
+      setLoading(true);
+      const created = await createLesson(payload);
+      Alert.alert('Muvaffaqiyat', 'Dars saqlandi');
+      onSubmit(created);
+      onClose();
+    } catch (err: any) {
+      console.warn('createLesson error', err);
+      const msg = err?.message ?? 'Dars yaratishda xato';
+      Alert.alert('Xato', msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const availableRooms = selectedFaculty ? ROOMS_BY_FACULTY[selectedFaculty] || [] : [];
-
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { resetForm(); onClose(); }}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Yangi dars qo'shish</Text>
           <Text style={styles.dateSubtitle}>{currentDate}</Text>
 
+          {loading ? <View style={{ padding: 12 }}><ActivityIndicator size="small" /></View> : null}
+
           <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
-            {/* Faculty Select */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Fakultet</Text>
-              <TouchableOpacity
-                style={styles.selectBox}
-                onPress={() => setShowFacultyDropdown(!showFacultyDropdown)}
-              >
-                <Text style={[styles.selectText, !selectedFaculty && styles.placeholder]}>
-                  {selectedFaculty || 'Fakultetni tanlang'}
-                </Text>
+              <TouchableOpacity style={styles.selectBox} onPress={() => setShowFacultyDropdown(!showFacultyDropdown)}>
+                <Text style={[styles.selectText, !selectedFaculty && styles.placeholder]}>{selectedFaculty || 'Fakultetni tanlang'}</Text>
                 <Text style={styles.arrow}>{showFacultyDropdown ? '▲' : '▼'}</Text>
               </TouchableOpacity>
               {showFacultyDropdown && (
                 <View style={styles.dropdown}>
-                  {FACULTIES.map((faculty) => (
-                    <TouchableOpacity
-                      key={faculty}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSelectedFaculty(faculty);
-                        setSelectedRoom('');
-                        setShowFacultyDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownText}>{faculty}</Text>
+                  {faculties.map((f) => (
+                    <TouchableOpacity key={f} style={styles.dropdownItem} onPress={() => { setSelectedFaculty(f); setSelectedRoom(null); setShowFacultyDropdown(false); }}>
+                      <Text style={styles.dropdownText}>{f}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
             </View>
 
-            {/* Room Select */}
-            {selectedFaculty && (
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Xona</Text>
-                <TouchableOpacity
-                  style={styles.selectBox}
-                  onPress={() => setShowRoomDropdown(!showRoomDropdown)}
-                >
-                  <Text style={[styles.selectText, !selectedRoom && styles.placeholder]}>
-                    {selectedRoom || 'Xonani tanlang'}
-                  </Text>
-                  <Text style={styles.arrow}>{showRoomDropdown ? '▲' : '▼'}</Text>
-                </TouchableOpacity>
-                {showRoomDropdown && (
-                  <View style={styles.dropdown}>
-                    {availableRooms.map((room) => (
-                      <TouchableOpacity
-                        key={room}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                          setSelectedRoom(room);
-                          setShowRoomDropdown(false);
-                        }}
-                      >
-                        <Text style={styles.dropdownText}>{room}</Text>
-                      </TouchableOpacity>
-                    ))}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Xona</Text>
+              <TouchableOpacity style={styles.selectBox} onPress={openRoomDropdown}>
+                <Text style={[styles.selectText, !selectedRoom && styles.placeholder]}>{selectedRoom?.name || (selectedFaculty ? 'Xonani tanlang' : 'Avval fakultet tanlang')}</Text>
+                <Text style={styles.arrow}>{showRoomDropdown ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+              {showRoomDropdown && (
+                <View style={styles.dropdown}>
+                  <View style={{ padding: 8 }}>
+                    <TextInput placeholder="Qidirish..." value={roomQuery} onChangeText={setRoomQuery} style={styles.searchInput} />
                   </View>
-                )}
-              </View>
-            )}
+                  {loadingRooms ? <ActivityIndicator style={{ margin: 8 }} /> : null}
+                  {roomsList.map((r) => (
+                    <TouchableOpacity key={r.id} style={styles.dropdownItem} onPress={() => { setSelectedRoom(r); setShowRoomDropdown(false); }}>
+                      <Text style={styles.dropdownText}>{r.name} {r.fakultet ? `· ${r.fakultet}` : ''}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
 
-            {/* Group Select */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Guruh</Text>
-              <TouchableOpacity
-                style={styles.selectBox}
-                onPress={() => setShowGroupDropdown(!showGroupDropdown)}
-              >
-                <Text style={[styles.selectText, !selectedGroup && styles.placeholder]}>
-                  {selectedGroup || 'Guruhni tanlang'}
-                </Text>
+              <TouchableOpacity style={styles.selectBox} onPress={openGroupDropdown}>
+                <Text style={[styles.selectText, !selectedGroup && styles.placeholder]}>{selectedGroup?.name || 'Guruhni tanlang'}</Text>
                 <Text style={styles.arrow}>{showGroupDropdown ? '▲' : '▼'}</Text>
               </TouchableOpacity>
               {showGroupDropdown && (
                 <View style={styles.dropdown}>
-                  {GROUPS.map((group) => (
-                    <TouchableOpacity
-                      key={group}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSelectedGroup(group);
-                        setShowGroupDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownText}>{group}</Text>
+                  <View style={{ padding: 8 }}>
+                    <TextInput placeholder="Qidirish..." value={groupQuery} onChangeText={setGroupQuery} style={styles.searchInput} />
+                  </View>
+                  {loadingGroups ? <ActivityIndicator style={{ margin: 8 }} /> : null}
+                  {groupsList.map((g) => (
+                    <TouchableOpacity key={g.id} style={styles.dropdownItem} onPress={() => { setSelectedGroup(g); setShowGroupDropdown(false); }}>
+                      <Text style={styles.dropdownText}>{g.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
             </View>
 
-            {/* Subject Select */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Fan</Text>
-              <TouchableOpacity
-                style={styles.selectBox}
-                onPress={() => setShowSubjectDropdown(!showSubjectDropdown)}
-              >
-                <Text style={[styles.selectText, !selectedSubject && styles.placeholder]}>
-                  {selectedSubject || 'Fanni tanlang'}
-                </Text>
+              <TouchableOpacity style={styles.selectBox} onPress={openSubjectDropdown}>
+                <Text style={[styles.selectText, !selectedSubject && styles.placeholder]}>{selectedSubject?.name || 'Fanni tanlang yoki qidirish'}</Text>
                 <Text style={styles.arrow}>{showSubjectDropdown ? '▲' : '▼'}</Text>
               </TouchableOpacity>
               {showSubjectDropdown && (
                 <View style={styles.dropdown}>
-                  {SUBJECTS.map((subject) => (
-                    <TouchableOpacity
-                      key={subject}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSelectedSubject(subject);
-                        setShowSubjectDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownText}>{subject}</Text>
+                  <View style={{ padding: 8 }}>
+                    <TextInput placeholder="Qidirish..." value={subjectQuery} onChangeText={setSubjectQuery} style={styles.searchInput} />
+                  </View>
+                  {loadingSubjects ? <ActivityIndicator style={{ margin: 8 }} /> : null}
+                  {subjectsList.map((s) => (
+                    <TouchableOpacity key={s.id} style={styles.dropdownItem} onPress={() => { setSelectedSubject(s); setShowSubjectDropdown(false); }}>
+                      <Text style={styles.dropdownText}>{s.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
             </View>
 
-            {/* Lesson Type Select */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Dars turi</Text>
-              <TouchableOpacity
-                style={styles.selectBox}
-                onPress={() => setShowTypeDropdown(!showTypeDropdown)}
-              >
-                <Text style={[styles.selectText, !selectedType && styles.placeholder]}>
-                  {selectedType || 'Dars turini tanlang'}
-                </Text>
+              <TouchableOpacity style={styles.selectBox} onPress={() => setShowTypeDropdown(!showTypeDropdown)}>
+                <Text style={[styles.selectText, !selectedType && styles.placeholder]}>{selectedType?.name || 'Dars turini tanlang'}</Text>
                 <Text style={styles.arrow}>{showTypeDropdown ? '▲' : '▼'}</Text>
               </TouchableOpacity>
               {showTypeDropdown && (
                 <View style={styles.dropdown}>
-                  {LESSON_TYPES.map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSelectedType(type);
-                        setShowTypeDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownText}>{type}</Text>
+                  {lessonTypes.map((t) => (
+                    <TouchableOpacity key={t.id} style={styles.dropdownItem} onPress={() => { setSelectedType(t); setShowTypeDropdown(false); }}>
+                      <Text style={styles.dropdownText}>{t.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
             </View>
 
-            {/* Para Select */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Para</Text>
-              <TouchableOpacity
-                style={styles.selectBox}
-                onPress={() => setShowParaDropdown(!showParaDropdown)}
-              >
-                <Text style={[styles.selectText, !selectedPara && styles.placeholder]}>
-                  {selectedPara ? `${selectedPara}-para` : 'Parani tanlang'}
-                </Text>
+              <TouchableOpacity style={styles.selectBox} onPress={() => setShowParaDropdown(!showParaDropdown)}>
+                <Text style={[styles.selectText, !selectedPara && styles.placeholder]}>{selectedPara?.name || 'Parani tanlang'}</Text>
                 <Text style={styles.arrow}>{showParaDropdown ? '▲' : '▼'}</Text>
               </TouchableOpacity>
               {showParaDropdown && (
                 <View style={styles.dropdown}>
-                  {LESSON_TIMES.map((time) => (
-                    <TouchableOpacity
-                      key={time.para}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSelectedPara(time.para);
-                        setShowParaDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownText}>
-                        {time.para}-para ({time.start} - {time.end})
-                      </Text>
+                  {paras.map((p) => (
+                    <TouchableOpacity key={p.id} style={styles.dropdownItem} onPress={() => { setSelectedPara(p); setShowParaDropdown(false); }}>
+                      <Text style={styles.dropdownText}>{p.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -310,12 +328,12 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
           </ScrollView>
 
           <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => { resetForm(); onClose(); }}>
               <Text style={styles.cancelButtonText}>Bekor qilish</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.createButton} onPress={handleSubmit}>
-              <Text style={styles.createButtonText}>Yaratish</Text>
+            <TouchableOpacity style={styles.createButton} onPress={handleSubmit} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.createButtonText}>Yaratish</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -349,14 +367,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     marginTop: 4,
   },
   formScroll: {
     marginBottom: 16,
   },
   fieldContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   label: {
     fontSize: 14,
@@ -371,7 +389,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F6F9',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
@@ -390,17 +408,17 @@ const styles = StyleSheet.create({
   dropdown: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    marginTop: 4,
+    marginTop: 6,
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    maxHeight: 200,
+    maxHeight: 220,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 6,
   },
   dropdownItem: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
@@ -408,6 +426,12 @@ const styles = StyleSheet.create({
   dropdownText: {
     fontSize: 15,
     color: '#1a1a1a',
+  },
+  searchInput: {
+    backgroundColor: '#F4F6F9',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   modalButtons: {
     flexDirection: 'row',

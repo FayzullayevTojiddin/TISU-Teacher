@@ -1,37 +1,100 @@
-const BASE_URL = 'https://your-backend-api.com';
+import { apiPost, removeToken, saveToken } from './client';
 
-export async function login(username: string, password: string): Promise<boolean> {
+interface LoginPayload {
+  login: string;
+  password: string;
+}
+
+interface LoginResponse {
+  message: string;
+  token: string;
+  teacher: {
+    id: number;
+    full_name: string;
+    login: string;
+  };
+}
+
+interface ChangePasswordPayload {
+  old_password: string;
+  new_password: string;
+  new_password_confirmation: string;
+}
+
+interface LogoutResponse {
+  message: string;
+}
+
+export const login = async (
+  username: string,
+  password: string
+): Promise<LoginResponse> => {
   try {
-    const response = await fetch(`${BASE_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username,
-        password,
-      }),
+    const response = await apiPost<LoginResponse>('/teacher/login', {
+      login: username,
+      password: password,
     });
 
-    if (!response.ok) {
-      throw new Error('Login yoki parol noto\'g\'ri');
+    if (response.success && response.data.token) {
+      await saveToken(response.data.token);
+      return response.data;
     }
 
-    const data = await response.json();
-    
-    return true;
+    const errorMsg = response.data?.message || 'Login xatolik';
+    throw new Error(errorMsg);
   } catch (error: any) {
-    console.error('Login error:', error);
-    throw new Error(error.message || 'Tizimga kirishda xatolik yuz berdi');
+    throw error;
   }
-}
+};
 
-export async function loginMock(username: string, password: string): Promise<boolean> {
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  if (username === 'teacher' && password === '1') {
-    return true;
+export const logout = async (): Promise<void> => {
+  try {
+    await apiPost<LogoutResponse>('/teacher/logout', {}, true);
+    
+    await removeToken();
+  } catch (error: any) {
+
+    await removeToken();
+    
+    throw new Error(error.message || 'Logout amalga oshmadi');
   }
-  
-  throw new Error('Login yoki parol noto\'g\'ri');
-}
+};
+
+export const changePassword = async (
+  oldPassword: string,
+  newPassword: string
+): Promise<string> => {
+  try {
+    const response = await apiPost<{ message: string }>(
+      '/teacher/change-password',
+      {
+        old_password: oldPassword,
+        new_password: newPassword,
+        new_password_confirmation: newPassword,
+      },
+      true
+    );
+
+    if (response.success) {
+      return response.data.message;
+    }
+
+    throw new Error(response.data.message || 'Parol o\'zgartirilmadi');
+  } catch (error: any) {
+    throw new Error(error.message || 'Parol o\'zgartirish amalga oshmadi');
+  }
+};
+
+export const getProfile = async () => {
+  try {
+    const response = await apiPost('/teacher/profile', {}, true);
+
+    if (response.success) {
+      return response.data.teacher;
+    }
+
+    throw new Error(response.data.message || 'Profil ma\'lumotlari yuklanmadi');
+  } catch (error: any) {
+    throw new Error(error.message || 'Profil ma\'lumotlarini olishda xatolik');
+  }
+};

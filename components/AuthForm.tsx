@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { loginMock } from '../api/auth';
+import { login } from '../api/auth';
 import InputField from './InputField';
 import PrettyAlert from './PrettyAlert';
 
@@ -16,7 +16,7 @@ interface AuthFormProps {
 }
 
 const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
-  const [login, setLogin] = useState<string>('');
+  const [loginValue, setLoginValue] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [errorVisible, setErrorVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -25,7 +25,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
   const passRef = useRef<TextInput | null>(null);
 
   const tryLogin = async () => {
-    if (!login.trim() || !password.trim()) {
+    if (!loginValue.trim() || !password.trim()) {
       setErrorMessage('Login va parolni to\'ldiring');
       setErrorVisible(true);
       return;
@@ -33,22 +33,21 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
 
     try {
       setLoading(true);
-      
-      await loginMock(login, password);
-      
+      const response = await login(loginValue, password);
       onLogin();
-    } catch (error: any) {
-      console.error('Login error:', error);
-      setErrorMessage(
-        error.message || 'Tizimga kirishda xatolik yuz berdi'
-      );
+    } catch (error: any) {      
+      let errorMsg = error.message || 'Tizimga kirishda xatolik yuz berdi';
+      
+      errorMsg = errorMsg.replace(/^Error:\s*/i, '');
+      
+      setErrorMessage(errorMsg);
       setErrorVisible(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const isDisabled = login.trim() === '' || password.trim() === '' || loading;
+  const isDisabled = loginValue.trim() === '' || password.trim() === '' || loading;
 
   return (
     <View style={styles.container}>
@@ -60,8 +59,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
 
       <InputField
         label="Login"
-        value={login}
-        onChangeText={setLogin}
+        value={loginValue}
+        onChangeText={setLoginValue}
         returnKeyType="next"
         onSubmitEditing={() => passRef.current && passRef.current.focus()}
         editable={!loading}
