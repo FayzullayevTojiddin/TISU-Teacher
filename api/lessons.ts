@@ -58,27 +58,37 @@ export const fetchLesson = async (id: number | string): Promise<Lesson> => {
     throw new Error(err?.message || 'Dars ma\'lumotlari olinayotganda xatolik yuz berdi');
   }
 };
-
-/* dars qo'shish (image bo'lsa FormData, aks holda JSON) */
 export const createLesson = async (payload: {
   group_id: number | string;
   room_id: number | string;
-  date: string; // Y-m-d
+  date: string;
   fakultet: string;
   subject_name?: string;
   time_at?: string;
-  image?: any; // RN: { uri, name, type } yoki browser File
+  image?: any;
 }): Promise<Lesson> => {
   try {
     const { image, ...rest } = payload;
+    const token = await getToken();
+    if (!token) throw new Error("Dars qo'shilmadi");
 
+    // yordamchi: body ichidan lesson topish
+    const extractLesson = (body: any): Lesson | null => {
+      if (!body) return null;
+      if (body.data && body.data.lesson) return body.data.lesson as Lesson;
+      if (body.lesson) return body.lesson as Lesson;
+      if (body.data && typeof body.data.id === 'number') return body.data as Lesson;
+      if (typeof body.id === 'number') return body as Lesson;
+      return null;
+    };
+
+    // FormData (image) shoxi
     if (image) {
       const form = new FormData();
       Object.entries(rest).forEach(([k, v]) => {
         if (v !== undefined && v !== null) form.append(k, String(v));
       });
 
-      // React Native style: { uri, name, type }
       if ((image as any).uri) {
         form.append('image', {
           uri: (image as any).uri,
@@ -86,12 +96,8 @@ export const createLesson = async (payload: {
           type: (image as any).type ?? 'image/jpeg',
         } as any);
       } else {
-        // Browser File
         form.append('image', image as any);
       }
-
-      const token = await getToken();
-      if (!token) throw new Error('Token mavjud emas. Iltimos avval login qiling.');
 
       const url = `${BASE_URL}/teacher/lessons`;
       const response = await fetch(url, {
@@ -99,30 +105,43 @@ export const createLesson = async (payload: {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
-          // IMPORTANT: Content-Type ni qo'ymang — fetch FormData uchun boundary o'rnatadi
         },
         body: form as any,
       });
 
-      const responseData = await response.json();
-      if (!response.ok || responseData.success === false) {
-        const msg =
-          responseData?.data?.message ||
-          responseData?.message ||
-          responseData?.error ||
-          `Server xatosi: ${response.status}`;
-        throw new Error(msg);
+      let body: any = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
       }
-      return responseData.data.lesson;
+
+      const lesson = extractLesson(body);
+      if (lesson) return lesson;
+      throw new Error("Dars qo'shilmadi");
     }
 
-    // image yo'q bo'lsa JSON orqali yuborish
-    const res = await apiPost<{ message?: string; lesson: Lesson }>('/teacher/lessons', rest, true);
-    return res.data.lesson;
+    // JSON branch (image yo'q)
+    const res = await apiPost<{ data?: { lesson?: Lesson } | Lesson }>(
+      '/teacher/lessons',
+      rest,
+      true
+    );
+
+    const lessonFromRes =
+      (res && (res.data as any) && (res.data as any).lesson) ||
+      (res && (res.data as any) && typeof (res.data as any).id === 'number' ? (res.data as any) : null) ||
+      null;
+
+    if (lessonFromRes) return lessonFromRes as Lesson;
+
+    throw new Error("Dars qo'shilmadi");
   } catch (err: any) {
     if (err?.message === 'Network request failed') {
-      throw new Error('Internet aloqasi yo\'q');
+      throw new Error("Internet aloqasi yo'q");
     }
-    throw new Error(err?.message || 'Dars qo\'shishda xatolik yuz berdi');
+
+    console.log(err)
+    throw new Error("Dars qo'shilmadi1");
   }
 };

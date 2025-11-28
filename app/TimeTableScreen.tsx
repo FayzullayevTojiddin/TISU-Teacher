@@ -1,27 +1,21 @@
 // screens/TimeTableScreen.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  AppState,
+  AppStateStatus,
   FlatList,
   Platform,
+  RefreshControl,
   SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { createLesson, fetchLessons } from '../api/lessons';
 import AddLessonForm from '../components/AddLessonForm';
 import TimeTableItem, { UiLesson } from '../components/TimeTableItem';
-
-const LESSON_TIMES = [
-  { para: 1, start: '08:30', end: '09:50' },
-  { para: 2, start: '10:00', end: '11:20' },
-  { para: 3, start: '11:40', end: '13:00' },
-  { para: 4, start: '13:30', end: '14:50' },
-  { para: 5, start: '15:00', end: '16:20' },
-];
 
 const isoDate = (d: Date) => {
   const year = d.getFullYear();
@@ -35,6 +29,9 @@ const formatReadable = (iso: string) => {
   return d.toLocaleDateString();
 };
 
+const POLL_INTERVAL_MS = 30000; // 30s poll (konfiguratsiya mumkin)
+const DEBOUNCE_MS = 250; // uzluksiz tez takroriy chaqiruvlarni cheklash
+
 const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset = 12 }: any) => {
   const [dateKey, setDateKey] = useState<string>(isoDate(new Date()));
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -42,7 +39,17 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
   const [lessonsUi, setLessonsUi] = useState<UiLesson[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const currentKey = useMemo(() => dateKey, [dateKey]);
+
+  // Abort controller to cancel inflight fetches and avoid race conditions
+  const inflight = useRef<AbortController | null>(null);
+  // debounce timer
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // poll interval id
+  const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  // track app state to avoid polling in background
+  const appState = useRef(AppState.currentState);
 
   const mapApiToUi = (apiLesson: any): UiLesson => {
     const details = apiLesson.details ?? {};
@@ -63,23 +70,118 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     };
   };
 
-  const loadLessons = async (iso: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { lessons } = await fetchLessons(iso);
-      const ui = lessons.map(mapApiToUi).sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-      setLessonsUi(ui);
-    } catch (err: any) {
-      setError(err?.message ?? 'Darslarni yuklashda xatolik');
-      setLessonsUi([]);
-    } finally {
-      setLoading(false);
+  // Compare arrays of lessons by id -> return true if different
+  const areLessonsDifferent = (a: UiLesson[], b: UiLesson[]) => {
+    if (a.length !== b.length) return true;
+    const aIds = a.map(x => x.id).sort();
+    const bIds = b.map(x => x.id).sort();
+    for (let i = 0; i < aIds.length; i++) {
+      if (aIds[i] !== bIds[i]) return true;
     }
+    // optionally compare starts/titles if IDs same but changed
+    for (let i = 0; i < a.length; i++) {
+      const ai = a.find(x => x.id === b[i]?.id);
+      const bi = b.find(x => x.id === a[i]?.id);
+      if (ai && bi && (ai.start !== bi.start || ai.subject !== bi.subject)) return true;
+    }
+    return false;
   };
 
+  // Core loader with AbortController and debounce
+  const loadLessons = async (iso: string, { showLoader = true, force = false } = {}) => {
+    // debounce: cancel previous scheduled call and schedule new
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(async () => {
+      // cancel inflight
+      if (inflight.current) {
+        try { inflight.current.abort(); } catch (e) {}
+      }
+      const controller = new AbortController();
+      inflight.current = controller;
+
+      if (showLoader) setLoading(true);
+      setError(null);
+      try {
+        const payload = await fetchLessons(iso);
+        // API expected { lessons: [...] }
+        const ui = (payload.lessons ?? []).map(mapApiToUi).sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+        // if not force and no change -> don't update state (avoid rerenders & redundant work)
+        setLessonsUi(prev => {
+          if (!force && !areLessonsDifferent(prev, ui)) {
+            return prev;
+          }
+          return ui;
+        });
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          // aborted -> ignore
+        } else {
+          setError(err?.message ?? 'Darslarni yuklashda xatolik');
+          setLessonsUi([]);
+        }
+      } finally {
+        if (showLoader) setLoading(false);
+        setRefreshing(false);
+        inflight.current = null;
+      }
+    }, DEBOUNCE_MS);
+  };
+
+  // initial & when dateKey changes
   useEffect(() => {
-    loadLessons(currentKey);
+    loadLessons(currentKey, { showLoader: true, force: false });
+    // cleanup on unmount: clear debounce & abort inflight
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (inflight.current) {
+        try { inflight.current.abort(); } catch (e) {}
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentKey]);
+
+  // Polling: check server every POLL_INTERVAL_MS only when app active
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      const wasInBackground = appState.current === 'inactive' || appState.current === 'background';
+      if (wasInBackground && nextAppState === 'active') {
+        loadLessons(currentKey);
+      }
+
+      appState.current = nextAppState;
+
+      if (nextAppState === 'active') {
+        if (!pollInterval.current) {
+          pollInterval.current = setInterval(() => {
+            loadLessons(currentKey);
+          }, POLL_INTERVAL_MS);
+        }
+      } else {
+        if (pollInterval.current) {
+          clearInterval(pollInterval.current);
+          pollInterval.current = null;
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener ? AppState.addEventListener('change', handleAppStateChange) : null;
+    // start immediately if active
+    if (appState.current === 'active') {
+      if (!pollInterval.current) {
+        pollInterval.current = setInterval(() => {
+          loadLessons(currentKey, { showLoader: false, force: false });
+        }, POLL_INTERVAL_MS);
+      }
+    }
+
+    return () => {
+      if (subscription && (subscription as any).remove) (subscription as any).remove();
+      if (pollInterval.current) {
+        clearInterval(pollInterval.current);
+        pollInterval.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentKey]);
 
   const handleAddLesson = () => {
@@ -100,18 +202,31 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
       const created = await createLesson(payload);
       const newUi = mapApiToUi(created);
       setLessonsUi(prev => {
-        const merged = [...prev, newUi].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+        const existsIndex = prev.findIndex(p => p.id === newUi.id);
+        let merged;
+        if (existsIndex >= 0) {
+          merged = prev.slice();
+          merged[existsIndex] = newUi;
+        } else {
+          merged = [...prev, newUi];
+        }
+        merged.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
         return merged;
       });
       setIsAddModalVisible(false);
-      Alert.alert('Muvaffaqiyat', "Dars muvaffaqiyatli qo'shildi");
+      loadLessons(currentKey);
     } catch (err: any) {
-      Alert.alert('Xato', err?.message ?? "Dars qo'shilmadi");
     } finally {
       setLoading(false);
     }
   };
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadLessons(currentKey, { showLoader: false, force: true });
+  };
+
+  // --- Calendar generation same as before ---
   const generateCalendarDates = () => {
     const selected = new Date(currentKey);
     const year = selected.getFullYear();
@@ -164,6 +279,7 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
           data={lessonsUi}
           keyExtractor={(it) => it.id}
           renderItem={({ item }) => <TimeTableItem lesson={item} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
       )}
 
@@ -283,6 +399,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   titleText: {
+    margin: 10,
     fontSize: 20,
     fontWeight: '800',
     color: '#1a1a1a',
