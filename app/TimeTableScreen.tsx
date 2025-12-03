@@ -55,7 +55,7 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     const details = apiLesson.details ?? {};
     const subject = details.subject_name ?? apiLesson.subject_name ?? (apiLesson.group?.name ? `${apiLesson.group.name} darsi` : '—');
     const start = details.time_at ?? details.start ?? '—';
-    const lessonType = details.fakultet ?? "Ma'ruza";
+    const lessonType = details.build ?? "Ma'ruza";
     const groupName = apiLesson.group?.name ?? String(apiLesson.group_id ?? '');
     const roomName = apiLesson.room?.name ?? String(apiLesson.room_id ?? '');
     return {

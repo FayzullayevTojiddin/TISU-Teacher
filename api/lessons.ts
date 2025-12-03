@@ -2,7 +2,7 @@
 import { apiGet, apiPost, BASE_URL, getToken } from './client';
 
 export interface LessonDetails {
-  fakultet: string;
+  build: string;
   subject_name?: string | null;
   time_at?: string | null;
   [k: string]: any;
@@ -62,7 +62,7 @@ export const createLesson = async (payload: {
   group_id: number | string;
   room_id: number | string;
   date: string;
-  fakultet: string;
+  build: string;
   subject_name?: string;
   time_at?: string;
   image?: any;

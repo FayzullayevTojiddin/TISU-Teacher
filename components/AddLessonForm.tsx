@@ -13,13 +13,13 @@ import {
   View,
 } from 'react-native';
 import {
-  getFakultets,
+  getBuilds,
   getLessonTypes,
   getParas,
   Option,
   searchGroups,
   searchRooms,
-  searchSubjects,
+  searchSubjects
 } from '../api/searchs';
 
 interface AddLessonFormProps {
@@ -93,7 +93,7 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
     (async () => {
       try {
         setLoading(true);
-        const fArr = await getFakultets();
+        const fArr = await getBuilds();
         setFaculties(fArr);
         const pArr = await getParas();
         setParas(pArr);
@@ -184,7 +184,7 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
       group_id: selectedGroup.id,
       room_id: selectedRoom.id,
       date: isoDate ?? currentDate,
-      fakultet: selectedFaculty,
+      build: selectedFaculty,
       subject_name: selectedSubject.name,
       lesson_type: selectedType.name,
       time_at: selectedPara.name,
@@ -279,16 +279,16 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
 
           {/* Form Content */}
           <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
-            {/* Fakultet */}
+            {/* Bino */}
             <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>🏛️ Fakultet</Text>
+              <Text style={styles.fieldLabel}>🏛️ Bino</Text>
               <TouchableOpacity
                 style={styles.selectButton}
                 onPress={() => setShowFacultyDropdown(!showFacultyDropdown)}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.selectText, !selectedFaculty && styles.placeholderText]}>
-                  {selectedFaculty || 'Fakultetni tanlang'}
+                  {selectedFaculty || 'Binoni tanlang'}
                 </Text>
                 <Text style={styles.arrowIcon}>{showFacultyDropdown ? '▲' : '▼'}</Text>
               </TouchableOpacity>
@@ -312,7 +312,7 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
                 activeOpacity={0.7}
               >
                 <Text style={[styles.selectText, !selectedRoom && styles.placeholderText]}>
-                  {selectedRoom?.name || (selectedFaculty ? 'Xonani tanlang' : 'Avval fakultet tanlang')}
+                  {selectedRoom?.name || (selectedFaculty ? 'Xonani tanlang' : 'Avval binoni tanlang')}
                 </Text>
                 <Text style={styles.arrowIcon}>{showRoomDropdown ? '▲' : '▼'}</Text>
               </TouchableOpacity>
@@ -326,7 +326,7 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
                 loadingRooms,
                 roomQuery,
                 setRoomQuery,
-                (r) => `${r.name}${r.fakultet ? ` · ${r.fakultet}` : ''}`
+                (r) => `${r.name}${r.build ? ` · ${r.build}` : ''}`
               )}
             </View>
 

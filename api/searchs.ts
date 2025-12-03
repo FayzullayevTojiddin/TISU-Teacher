@@ -7,13 +7,13 @@ export interface Option {
   [k: string]: any;
 }
 
-export const getFakultets = async (): Promise<string[]> => {
+export const getBuilds = async (): Promise<string[]> => {
   try {
-    const res = await apiGet<Record<string, string>>('/teacher/search/fakultets', undefined, true);
+    const res = await apiGet<Record<string, string>>('/teacher/search/builds', undefined, true);
     const data = res.data;
     return Array.isArray(data) ? data : Object.values(data ?? {});
   } catch (err: any) {
-    throw new Error(err?.message ?? 'Fakultetlarni olishda xato');
+    throw new Error(err?.message ?? 'Binolarni olishda xato');
   }
 };
 
@@ -27,13 +27,13 @@ export const searchGroups = async (q?: string): Promise<Option[]> => {
   }
 };
 
-export const searchRooms = async (q?: string, fakultet?: string): Promise<Option[]> => {
+export const searchRooms = async (q?: string, build?: string): Promise<Option[]> => {
   try {
     const params: any = {};
     if (q) params.q = q;
-    if (fakultet) params.fakultet = fakultet;
+    if (build) params.build = build;
     const res = await apiGet<Option[]>('/teacher/search/rooms', Object.keys(params).length ? params : undefined, true);
-    return (res.data ?? []).map((r: any) => ({ id: r.id, name: r.name, fakultet: r.fakultet }));
+    return (res.data ?? []).map((r: any) => ({ id: r.id, name: r.name, build: r.build }));
   } catch (err: any) {
     throw new Error(err?.message ?? 'Xonalarni qidirishda xato');
   }

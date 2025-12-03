@@ -202,7 +202,7 @@ const AttendanceScreen: React.FC = () => {
   const startTime = lessonDetails.time_at || lesson?.start || '—';
   const roomName = lesson?.room?.name || lesson?.room || '—';
   const groupName = lesson?.group?.name || lesson?.group || '—';
-  const lessonType = lessonDetails.fakultet || lesson?.type || "Ma'ruza";
+  const lessonType = lessonDetails.build || lesson?.type || "Ma'ruza";
 
   const presentCount = Object.values(attendance).filter(v => v === true).length;
   const absentCount = Object.values(attendance).filter(v => v === false).length;

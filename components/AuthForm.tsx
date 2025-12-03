@@ -118,17 +118,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
                 </View>
               )}
             </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                // optional: forgot password handler placeholder
-                setErrorMessage('Parolni unutdingizmi? Admin bilan bog‘laning.');
-                setErrorVisible(true);
-              }}
-              style={styles.forgotBtn}
-            >
-              <Text style={styles.forgotTxt}>Parolni unutdingizmi?</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -149,7 +138,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     flexDirection: 'row',
     overflow: 'hidden',
-    // shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: Platform.OS === 'ios' ? 0.06 : 0.12,
