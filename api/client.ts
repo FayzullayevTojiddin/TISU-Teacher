@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const BASE_URL = "https://d9ff274cdc9a.ngrok-free.app/api";
+export const BASE_URL = "https://tizim.tues.uz/api";
 
 const TOKEN_KEY = 'auth_token';
 
