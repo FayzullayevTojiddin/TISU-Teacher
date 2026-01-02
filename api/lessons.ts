@@ -13,7 +13,7 @@ export interface Lesson {
   teacher_id: number;
   group_id: number;
   room_id: number;
-  date: string; // YYYY-MM-DD
+  date: string;
   image?: string | null;
   details?: LessonDetails;
   group?: any;
@@ -23,10 +23,8 @@ export interface Lesson {
   [k: string]: any;
 }
 
-/* lessons ro'yxatini olish (date required) */
 export const fetchLessons = async (date: string): Promise<{ lessons: Lesson[]; total: number }> => {
   try {
-    // apiGet<T> ga T -> data ning shakli bo'ladi
     const res = await apiGet<{
       message?: string;
       lessons: Lesson[];
@@ -46,7 +44,6 @@ export const fetchLessons = async (date: string): Promise<{ lessons: Lesson[]; t
   }
 };
 
-/* bitta lessonni id bo'yicha olish */
 export const fetchLesson = async (id: number | string): Promise<Lesson> => {
   try {
     const res = await apiGet<{ message?: string; lesson: Lesson }>(`/teacher/lessons/${id}`, undefined, true);
@@ -72,7 +69,6 @@ export const createLesson = async (payload: {
     const token = await getToken();
     if (!token) throw new Error("Dars qo'shilmadi");
 
-    // yordamchi: body ichidan lesson topish
     const extractLesson = (body: any): Lesson | null => {
       if (!body) return null;
       if (body.data && body.data.lesson) return body.data.lesson as Lesson;
@@ -82,7 +78,6 @@ export const createLesson = async (payload: {
       return null;
     };
 
-    // FormData (image) shoxi
     if (image) {
       const form = new FormData();
       Object.entries(rest).forEach(([k, v]) => {
@@ -121,7 +116,6 @@ export const createLesson = async (payload: {
       throw new Error("Dars qo'shilmadi");
     }
 
-    // JSON branch (image yo'q)
     const res = await apiPost<{ data?: { lesson?: Lesson } | Lesson }>(
       '/teacher/lessons',
       rest,

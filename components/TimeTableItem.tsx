@@ -32,7 +32,7 @@ const TimeTableItem: React.FC<{ lesson: UiLesson }> = ({ lesson }) => {
     navigation.navigate('Attendance', { lesson: lesson.raw ?? lesson });
   };
 
-  const config = typeConfig[lesson.type] || { color: '#999', icon: '📄' };
+  const config = typeConfig[lesson.raw.details.lesson_type] || { color: '#999', icon: '📄' };
 
   return (
     <TouchableOpacity 
@@ -53,7 +53,7 @@ const TimeTableItem: React.FC<{ lesson: UiLesson }> = ({ lesson }) => {
 
           <View style={styles.topRight}>
             <Text style={[styles.typeLabel, { color: config.color }]}>
-              {lesson.type}
+              {lesson.raw.details.lesson_type}
             </Text>
             <View style={styles.timeBadge}>
               <Ionicons name="time-outline" size={12} color="#666" />

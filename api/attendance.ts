@@ -68,6 +68,7 @@ export const saveAttendance = async (payload: SaveAttendancePayload): Promise<an
             const errorMessage = errorResponse?.data?.message || errorResponse?.message || 'Server xatosi';
             reject(new Error(errorMessage));
           } catch {
+            console.log(xhr);
             reject(new Error(`Server xatosi: ${xhr.status}`));
           }
         }

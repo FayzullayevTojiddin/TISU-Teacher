@@ -50,6 +50,7 @@ const AttendanceScreen: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
+        console.log(passedLesson);
         const lessonId = passedLesson.id || passedLesson.raw?.id;
         
         if (!lessonId) {
@@ -202,7 +203,7 @@ const AttendanceScreen: React.FC = () => {
   const startTime = lessonDetails.time_at || lesson?.start || '—';
   const roomName = lesson?.room?.name || lesson?.room || '—';
   const groupName = lesson?.group?.name || lesson?.group || '—';
-  const lessonType = lessonDetails.build || lesson?.type || "Ma'ruza";
+  const lessonType = lessonDetails.build || lesson?.details.lesson_type || "Ma'ruza";
 
   const presentCount = Object.values(attendance).filter(v => v === true).length;
   const absentCount = Object.values(attendance).filter(v => v === false).length;
@@ -392,7 +393,6 @@ const AttendanceScreen: React.FC = () => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Footer Button */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={[

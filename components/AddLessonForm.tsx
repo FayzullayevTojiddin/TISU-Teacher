@@ -1,4 +1,3 @@
-// components/AddLessonForm.tsx - Modern Design
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -116,7 +115,7 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
         const list = await searchGroups(q || undefined);
         setGroupsList(list);
       } catch (err) {
-        // silent
+        //
       } finally {
         setLoadingGroups(false);
       }
@@ -151,7 +150,7 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
         const list = await searchRooms(q || undefined, selectedFaculty || undefined);
         setRoomsList(list);
       } catch (err) {
-        // silent
+        //
       } finally {
         setLoadingRooms(false);
       }
@@ -190,8 +189,6 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
       time_at: selectedPara.name,
       image: imageFile ? imageFile : undefined,
     };
-
-    console.log(payload)
 
     if (imageFile) payload.image = imageFile;
 
@@ -382,7 +379,6 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
               )}
             </View>
 
-            {/* Dars turi */}
             <View style={styles.fieldCard}>
               <Text style={styles.fieldLabel}>📖 Dars turi</Text>
               <TouchableOpacity
@@ -405,7 +401,6 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
               )}
             </View>
 
-            {/* Para */}
             <View style={styles.fieldCard}>
               <Text style={styles.fieldLabel}>⏰ Para</Text>
               <TouchableOpacity
@@ -429,7 +424,6 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
             </View>
           </ScrollView>
 
-          {/* Bottom Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.cancelButton}
