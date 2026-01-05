@@ -16,16 +16,22 @@ import PrettyAlert from './PrettyAlert';
 
 interface AuthFormProps {
   onLogin: () => void;
+  onRegister: () => void;
 }
 
-const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
+const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
+  const [isLoginMode, setIsLoginMode] = useState(true);
   const [loginValue, setLoginValue] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [fullName, setFullName] = useState<string>('');
   const [errorVisible, setErrorVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const passRef = useRef<TextInput | null>(null);
+  const confirmPassRef = useRef<TextInput | null>(null);
+  const fullNameRef = useRef<TextInput | null>(null);
 
   const tryLogin = async () => {
     if (!loginValue.trim() || !password.trim()) {
@@ -48,7 +54,54 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
     }
   };
 
-  const isDisabled = loginValue.trim() === '' || password.trim() === '' || loading;
+  const tryRegister = async () => {
+    if (!fullName.trim() || !loginValue.trim() || !password.trim() || !confirmPassword.trim()) {
+      setErrorMessage("Barcha maydonlarni to'ldiring");
+      setErrorVisible(true);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage("Parollar mos kelmaydi");
+      setErrorVisible(true);
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMessage("Parol kamida 6 ta belgidan iborat bo'lishi kerak");
+      setErrorVisible(true);
+      return;
+    }
+
+    // Soxta ro'yxatdan o'tish - Registered sahifasiga o'tkazish
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      onRegister();
+    }, 800);
+  };
+
+  const handleSubmit = () => {
+    if (isLoginMode) {
+      tryLogin();
+    } else {
+      tryRegister();
+    }
+  };
+
+  const switchMode = () => {
+    setIsLoginMode(!isLoginMode);
+    setErrorVisible(false);
+    // Formani tozalash (ixtiyoriy)
+    // setLoginValue('');
+    // setPassword('');
+    // setConfirmPassword('');
+    // setFullName('');
+  };
+
+  const isDisabled = isLoginMode
+    ? loginValue.trim() === '' || password.trim() === '' || loading
+    : fullName.trim() === '' || loginValue.trim() === '' || password.trim() === '' || confirmPassword.trim() === '' || loading;
 
   return (
     <View style={styles.wrapper}>
@@ -66,12 +119,16 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
           {/* Header row with emoji/icon and title */}
           <View style={styles.headerRow}>
             <View style={styles.emojiCircle}>
-              <Text style={styles.emoji}>🔐</Text>
+              <Text style={styles.emoji}>{isLoginMode ? '🔐' : '✨'}</Text>
             </View>
 
             <View style={styles.headerText}>
-              <Text style={styles.cardTitle}>Tizimga kirish</Text>
-              <Text style={styles.cardSubtitle}>Hisobingiz bilan davom eting</Text>
+              <Text style={styles.cardTitle}>
+                {isLoginMode ? 'Tizimga kirish' : "Ro'yxatdan o'tish"}
+              </Text>
+              <Text style={styles.cardSubtitle}>
+                {isLoginMode ? 'Hisobingiz bilan davom eting' : 'Yangi hisob yarating'}
+              </Text>
             </View>
 
             <View style={styles.spacer} />
@@ -79,6 +136,19 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
 
           {/* Inputs */}
           <View style={styles.inputs}>
+            {!isLoginMode && (
+              <InputField
+                label="Ism Familiya"
+                value={fullName}
+                onChangeText={setFullName}
+                returnKeyType="next"
+                onSubmitEditing={() => fullNameRef.current && fullNameRef.current.focus()}
+                editable={!loading}
+                autoCapitalize="words"
+                inputRef={fullNameRef}
+              />
+            )}
+
             <InputField
               label="Login"
               value={loginValue}
@@ -95,16 +165,35 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
               onChangeText={setPassword}
               secure
               inputRef={passRef}
-              returnKeyType="done"
-              onSubmitEditing={tryLogin}
+              returnKeyType={isLoginMode ? 'done' : 'next'}
+              onSubmitEditing={() => {
+                if (isLoginMode) {
+                  handleSubmit();
+                } else {
+                  confirmPassRef.current && confirmPassRef.current.focus();
+                }
+              }}
               editable={!loading}
             />
+
+            {!isLoginMode && (
+              <InputField
+                label="Parolni tasdiqlang"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secure
+                inputRef={confirmPassRef}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                editable={!loading}
+              />
+            )}
           </View>
 
           {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity
-              onPress={tryLogin}
+              onPress={handleSubmit}
               disabled={isDisabled}
               style={[styles.submitBtn, isDisabled ? styles.btnDisabled : null]}
               activeOpacity={0.8}
@@ -113,10 +202,31 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin }) => {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <View style={styles.submitInner}>
-                  <Ionicons name="log-in-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.submitTxt}>Kirish</Text>
+                  <Ionicons 
+                    name={isLoginMode ? "log-in-outline" : "person-add-outline"} 
+                    size={18} 
+                    color="#fff" 
+                    style={{ marginRight: 8 }} 
+                  />
+                  <Text style={styles.submitTxt}>
+                    {isLoginMode ? 'Kirish' : "Ro'yxatdan o'tish"}
+                  </Text>
                 </View>
               )}
+            </TouchableOpacity>
+
+            {/* Switch between login and register */}
+            <TouchableOpacity
+              onPress={switchMode}
+              disabled={loading}
+              style={styles.switchBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.switchTxt}>
+                {isLoginMode 
+                  ? "Hisobingiz yo'qmi? Ro'yxatdan o'ting" 
+                  : "Hisobingiz bormi? Kirish"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -217,13 +327,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  forgotBtn: {
-    marginTop: 10,
-    paddingVertical: 6,
+  switchBtn: {
+    marginTop: 14,
+    paddingVertical: 8,
   },
-  forgotTxt: {
-    color: '#6b7280',
-    fontSize: 13,
+  switchTxt: {
+    color: '#0B74FF',
+    fontSize: 14,
     fontWeight: '600',
   },
 });
