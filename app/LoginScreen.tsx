@@ -9,7 +9,7 @@ interface Props {
   onRegister: () => void;
 }
 
-const LoginScreen: React.FC<Props> = ({ onLogin }) => {
+const LoginScreen: React.FC<Props> = ({ onLogin, onRegister }) => {
   const [showRegistered, setShowRegistered] = useState(false);
 
   if (showRegistered) {

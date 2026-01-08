@@ -2,12 +2,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    Animated,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
+  Animated,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 const RegisteredScreen: React.FC = () => {

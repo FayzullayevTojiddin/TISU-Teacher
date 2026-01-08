@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { login } from '../api/auth';
+import { login, register } from '../api/auth';
 import InputField from './InputField';
 import PrettyAlert from './PrettyAlert';
 
@@ -73,12 +73,18 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
       return;
     }
 
-    // Soxta ro'yxatdan o'tish - Registered sahifasiga o'tkazish
-    setLoading(true);
-    setTimeout(() => {
+    try {
+      setLoading(true);
+      await register(fullName, loginValue, password);
+      onLogin();
+    } catch (error: any) {
+      let errorMsg = error?.message || "Ro'yxatdan o'tishda xatolik yuz berdi";
+      errorMsg = errorMsg.replace(/^Error:\s*/i, '');
+      setErrorMessage(errorMsg);
+      setErrorVisible(true);
+    } finally {
       setLoading(false);
-      onRegister();
-    }, 800);
+    }
   };
 
   const handleSubmit = () => {
@@ -92,11 +98,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
   const switchMode = () => {
     setIsLoginMode(!isLoginMode);
     setErrorVisible(false);
-    // Formani tozalash (ixtiyoriy)
-    // setLoginValue('');
-    // setPassword('');
-    // setConfirmPassword('');
-    // setFullName('');
   };
 
   const isDisabled = isLoginMode
@@ -112,11 +113,9 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
       />
 
       <View style={styles.card}>
-        {/* Left accent */}
         <View style={styles.accent} />
 
         <View style={styles.cardContent}>
-          {/* Header row with emoji/icon and title */}
           <View style={styles.headerRow}>
             <View style={styles.emojiCircle}>
               <Text style={styles.emoji}>{isLoginMode ? '🔐' : '✨'}</Text>
@@ -134,7 +133,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
             <View style={styles.spacer} />
           </View>
 
-          {/* Inputs */}
           <View style={styles.inputs}>
             {!isLoginMode && (
               <InputField
@@ -190,7 +188,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
             )}
           </View>
 
-          {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity
               onPress={handleSubmit}
@@ -215,7 +212,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
               )}
             </TouchableOpacity>
 
-            {/* Switch between login and register */}
             <TouchableOpacity
               onPress={switchMode}
               disabled={loading}

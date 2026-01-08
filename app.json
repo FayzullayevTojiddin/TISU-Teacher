@@ -1,24 +1,25 @@
 {
   "expo": {
-    "name": "TISU-Teacher-App",
+    "name": "TISU O'qituvchi",
     "slug": "TISU-Teacher-App",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
-    "scheme": "tisuteacherapp",
+    "icon": "./assets/images/app-icon.png",
+    "scheme": "app.tisu.teacher-app",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "entryPoint": "./app/App.tsx",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.tisu.teacher"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/logo.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#0047AB",
+        "foregroundImage": "./assets/images/logo.png"
       },
+      "package": "app.tisu.teacher",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -40,6 +41,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#0047AB",
           "dark": {
+            "image": "./assets/images/logo.png",
             "backgroundColor": "#002F6C"
           }
         }
@@ -53,6 +55,7 @@
       "eas": {
         "projectId": "8feaaed0-e0c8-461a-b9ef-21cc3d85f302"
       }
-    }
+    },
+    "owner": "azamat_akoooo"
   }
 }

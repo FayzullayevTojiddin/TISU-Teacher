@@ -1,18 +1,6 @@
-// screens/TimeTableScreen.tsx
+import { MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  AppState,
-  AppStateStatus,
-  FlatList,
-  Platform,
-  RefreshControl,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from 'react-native';
+import { Animated, AppState, AppStateStatus, Easing, FlatList, Image, Modal, Platform, RefreshControl, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { createLesson, fetchLessons } from '../api/lessons';
 import AddLessonForm from '../components/AddLessonForm';
 import TimeTableItem, { UiLesson } from '../components/TimeTableItem';
@@ -29,27 +17,234 @@ const formatReadable = (iso: string) => {
   return d.toLocaleDateString();
 };
 
-const POLL_INTERVAL_MS = 30000; // 30s poll (konfiguratsiya mumkin)
-const DEBOUNCE_MS = 250; // uzluksiz tez takroriy chaqiruvlarni cheklash
+const POLL_INTERVAL_MS = 30000;
+const DEBOUNCE_MS = 250;
 
-const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset = 12 }: any) => {
-  const [dateKey, setDateKey] = useState<string>(isoDate(new Date()));
+interface TimeTableScreenProps {
+  onLogout?: () => void;
+  onDeleteAccount?: () => void;
+  onExtra?: () => void;
+  extraPositionRightOffset?: number;
+}
+
+// Nuqtalar uchun animatsiya
+const Dot = ({ delay }: { delay: number }) => {
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(bounceAnim, {
+          toValue: -8,
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.quad),
+        }),
+        Animated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.in(Easing.quad),
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [delay]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.dot,
+        {
+          transform: [{ translateY: bounceAnim }],
+        },
+      ]}
+    />
+  );
+};
+
+// Katta loading animatsiyasi komponenti
+const FullScreenLoader = () => {
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Fade in
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    // Aylanish animatsiyasi
+    Animated.loop(
+      Animated.timing(spinAnim, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: true,
+        easing: Easing.linear,
+      })
+    ).start();
+
+    // Pulsatsiya
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 800,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.ease),
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const spin = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  return (
+    <View style={styles.fullScreenLoader}>
+      <Animated.View
+        style={[
+          styles.loaderCircle,
+          {
+            opacity: fadeAnim,
+            transform: [{ rotate: spin }, { scale: pulseAnim }],
+          },
+        ]}
+      >
+        <Text style={styles.loaderIcon}>📚</Text>
+      </Animated.View>
+      <Animated.Text style={[styles.loaderText, { opacity: fadeAnim }]}>
+        Yuklanmoqda
+      </Animated.Text>
+      <View style={styles.dotsContainer}>
+        <Dot delay={0} />
+        <Dot delay={200} />
+        <Dot delay={400} />
+      </View>
+    </View>
+  );
+};
+
+// Animatsiyali bo'sh holat komponenti
+const EmptyStateAnimated = () => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // Fade va scale animatsiyasi
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Sakrash animatsiyasi (cheksiz)
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, {
+          toValue: -20,
+          duration: 600,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.quad),
+        }),
+        Animated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+          easing: Easing.in(Easing.quad),
+        }),
+        Animated.delay(800),
+      ])
+    ).start();
+
+    // Pulsatsiya animatsiyasi
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.ease),
+        }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.emptyWrap,
+        {
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
+    >
+      <Animated.Text
+        style={[
+          styles.emptyIcon,
+          {
+            transform: [{ translateY: bounceAnim }, { scale: pulseAnim }],
+          },
+        ]}
+      >
+        🎓
+      </Animated.Text>
+      <Text style={styles.emptyText}>Bugun darslar yo'q</Text>
+      <Text style={styles.emptySubtext}>Yangi dars qo'shish uchun "+" tugmasini bosing</Text>
+    </Animated.View>
+  );
+};
+
+const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAccount, onExtra, extraPositionRightOffset = 12 }) => {
+  const [dateKey, setDateKey] = useState(isoDate(new Date()));
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
   const [lessonsUi, setLessonsUi] = useState<UiLesson[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const currentKey = useMemo(() => dateKey, [dateKey]);
 
-  // Abort controller to cancel inflight fetches and avoid race conditions
+  const currentKey = useMemo(() => dateKey, [dateKey]);
   const inflight = useRef<AbortController | null>(null);
-  // debounce timer
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // poll interval id
-  const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  // track app state to avoid polling in background
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const pollInterval = useRef<NodeJS.Timeout | null>(null);
   const appState = useRef(AppState.currentState);
+
+  // Animatsiya uchun
+  const slideAnim = useRef(new Animated.Value(1000)).current;
+  const menuSlideAnim = useRef(new Animated.Value(-300)).current;
 
   const mapApiToUi = (apiLesson: any): UiLesson => {
     const details = apiLesson.details ?? {};
@@ -58,6 +253,7 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     const lessonType = details.build ?? "Ma'ruza";
     const groupName = apiLesson.group?.name ?? String(apiLesson.group_id ?? '');
     const roomName = apiLesson.room?.name ?? String(apiLesson.room_id ?? '');
+
     return {
       id: String(apiLesson.id),
       subject,
@@ -70,7 +266,6 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     };
   };
 
-  // Compare arrays of lessons by id -> return true if different
   const areLessonsDifferent = (a: UiLesson[], b: UiLesson[]) => {
     if (a.length !== b.length) return true;
     const aIds = a.map(x => x.id).sort();
@@ -78,7 +273,6 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     for (let i = 0; i < aIds.length; i++) {
       if (aIds[i] !== bIds[i]) return true;
     }
-    // optionally compare starts/titles if IDs same but changed
     for (let i = 0; i < a.length; i++) {
       const ai = a.find(x => x.id === b[i]?.id);
       const bi = b.find(x => x.id === a[i]?.id);
@@ -87,25 +281,26 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     return false;
   };
 
-  // Core loader with AbortController and debounce
   const loadLessons = async (iso: string, { showLoader = true, force = false } = {}) => {
-    // debounce: cancel previous scheduled call and schedule new
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
     debounceTimer.current = setTimeout(async () => {
-      // cancel inflight
       if (inflight.current) {
-        try { inflight.current.abort(); } catch (e) {}
+        try {
+          inflight.current.abort();
+        } catch (e) {}
       }
+
       const controller = new AbortController();
       inflight.current = controller;
 
       if (showLoader) setLoading(true);
       setError(null);
+
       try {
         const payload = await fetchLessons(iso);
-        // API expected { lessons: [...] }
         const ui = (payload.lessons ?? []).map(mapApiToUi).sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-        // if not force and no change -> don't update state (avoid rerenders & redundant work)
+
         setLessonsUi(prev => {
           if (!force && !areLessonsDifferent(prev, ui)) {
             return prev;
@@ -114,7 +309,7 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
         });
       } catch (err: any) {
         if (err?.name === 'AbortError') {
-          // aborted -> ignore
+          // aborted
         } else {
           setError(err?.message ?? 'Darslarni yuklashda xatolik');
           setLessonsUi([]);
@@ -127,27 +322,25 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     }, DEBOUNCE_MS);
   };
 
-  // initial & when dateKey changes
   useEffect(() => {
     loadLessons(currentKey, { showLoader: true, force: false });
-    // cleanup on unmount: clear debounce & abort inflight
+
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       if (inflight.current) {
-        try { inflight.current.abort(); } catch (e) {}
+        try {
+          inflight.current.abort();
+        } catch (e) {}
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentKey]);
 
-  // Polling: check server every POLL_INTERVAL_MS only when app active
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       const wasInBackground = appState.current === 'inactive' || appState.current === 'background';
       if (wasInBackground && nextAppState === 'active') {
         loadLessons(currentKey);
       }
-
       appState.current = nextAppState;
 
       if (nextAppState === 'active') {
@@ -165,7 +358,7 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     };
 
     const subscription = AppState.addEventListener ? AppState.addEventListener('change', handleAppStateChange) : null;
-    // start immediately if active
+
     if (appState.current === 'active') {
       if (!pollInterval.current) {
         pollInterval.current = setInterval(() => {
@@ -181,8 +374,45 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
         pollInterval.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentKey]);
+
+  // Date picker animatsiyasi
+  useEffect(() => {
+    if (showDatePicker) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 1000,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.cubic),
+      }).start();
+    }
+  }, [showDatePicker]);
+
+  // Menu modal animatsiyasi
+  useEffect(() => {
+    if (showMenuModal) {
+      Animated.spring(menuSlideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(menuSlideAnim, {
+        toValue: -300,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.cubic),
+      }).start();
+    }
+  }, [showMenuModal]);
 
   const handleAddLesson = () => {
     setIsAddModalVisible(true);
@@ -201,6 +431,7 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
       setLoading(true);
       const created = await createLesson(payload);
       const newUi = mapApiToUi(created);
+
       setLessonsUi(prev => {
         const existsIndex = prev.findIndex(p => p.id === newUi.id);
         let merged;
@@ -213,9 +444,11 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
         merged.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
         return merged;
       });
+
       setIsAddModalVisible(false);
       loadLessons(currentKey);
     } catch (err: any) {
+      // error handling
     } finally {
       setLoading(false);
     }
@@ -226,7 +459,6 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     loadLessons(currentKey, { showLoader: false, force: true });
   };
 
-  // --- Calendar generation same as before ---
   const generateCalendarDates = () => {
     const selected = new Date(currentKey);
     const year = selected.getFullYear();
@@ -235,9 +467,11 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     const lastDay = new Date(year, month + 1, 0);
     const startDay = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
+
     const dates: (Date | null)[] = [];
     for (let i = 0; i < startDay; i++) dates.push(null);
     for (let day = 1; day <= daysInMonth; day++) dates.push(new Date(year, month, day));
+
     return { dates, monthName: firstDay.toLocaleDateString('uz-UZ', { month: 'long', year: 'numeric' }) };
   };
 
@@ -259,25 +493,31 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
     <SafeAreaView style={styles.safe}>
       <View style={styles.topBar}>
         <Text style={styles.titleText}>Dars Jadvali</Text>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => setShowMenuModal(true)}
+        >
+          <View style={styles.menuIcon}>
+            <View style={styles.menuLine} />
+            <View style={styles.menuLine} />
+            <View style={styles.menuLine} />
+          </View>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={{ padding: 20, alignItems: 'center' }}>
-          <ActivityIndicator size="large" />
-        </View>
+        <FullScreenLoader />
       ) : error ? (
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyText}>{error}</Text>
         </View>
       ) : lessonsUi.length === 0 ? (
-        <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>Bugun darslar yo'q</Text>
-        </View>
+        <EmptyStateAnimated />
       ) : (
         <FlatList
-          contentContainerStyle={styles.list}
+          style={styles.list}
           data={lessonsUi}
-          keyExtractor={(it) => it.id}
+          keyExtractor={it => it.id}
           renderItem={({ item }) => <TimeTableItem lesson={item} />}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
@@ -285,45 +525,28 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
 
       <View style={styles.footerContainer}>
         <View style={styles.footerWrap}>
-          <TouchableOpacity
-            style={styles.dateBoxClickable}
-            onPress={() => setShowDatePicker(!showDatePicker)}
-          >
+          <TouchableOpacity style={styles.dateBoxClickable} onPress={() => setShowDatePicker(!showDatePicker)}>
             <Text style={styles.dateText}>{formatReadable(currentKey)}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.rightIconsColumn}>
-          <TouchableOpacity onPress={handleAddLesson} style={styles.iconBtn} accessibilityLabel="Dars qo'shish">
+          <TouchableOpacity style={styles.iconBtn} onPress={handleAddLesson}>
             <Text style={styles.addIconText}>+</Text>
           </TouchableOpacity>
 
-          {onLogout ? (
-            <TouchableOpacity onPress={onLogout} style={[styles.iconBtn, styles.iconBtnSpacing]} accessibilityLabel="Logout">
-              <Text style={styles.iconFallback}>⎋</Text>
-            </TouchableOpacity>
-          ) : null}
-
           {onExtra ? (
-            <TouchableOpacity onPress={onExtra} style={[styles.iconBtn, styles.iconBtnSpacing]} accessibilityLabel="Extra action">
+            <TouchableOpacity style={[styles.iconBtn, styles.iconBtnSpacing]} onPress={onExtra}>
               <Text style={styles.iconFallback}>⟳</Text>
             </TouchableOpacity>
           ) : null}
         </View>
       </View>
 
-      <AddLessonForm
-        visible={isAddModalVisible}
-        onClose={handleCloseModal}
-        onSubmit={handleSubmitLesson}
-        currentDate={formatReadable(currentKey)}
-        isoDate={currentKey}
-      />
-
       {showDatePicker && (
         <>
           <TouchableOpacity style={styles.datePickerOverlay} activeOpacity={1} onPress={() => setShowDatePicker(false)} />
-          <View style={styles.datePickerContainer}>
+          <Animated.View style={[styles.datePickerContainer, { transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.datePickerHeader}>
               <TouchableOpacity onPress={goToPrevMonth} style={styles.monthNavBtn}>
                 <Text style={styles.monthNavText}>◀</Text>
@@ -347,7 +570,6 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
                 if (!date) {
                   return <View key={`empty-${index}`} style={styles.calendarDateCell} />;
                 }
-
                 const dateStr = isoDate(date);
                 const isSelected = dateStr === currentKey;
                 const isToday = dateStr === isoDate(new Date());
@@ -355,33 +577,71 @@ const TimeTableScreen: React.FC = ({ onLogout, onExtra, extraPositionRightOffset
 
                 return (
                   <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.calendarDateCell,
-                      isSelected && styles.calendarDateSelected,
-                      isToday && !isSelected && styles.calendarDateToday,
-                    ]}
+                    key={dateStr}
+                    style={[styles.calendarDateCell, isSelected && styles.calendarDateSelected, isToday && !isSelected && styles.calendarDateToday]}
                     onPress={() => {
                       setDateKey(dateStr);
                       setShowDatePicker(false);
                     }}
                   >
-                    <Text style={[
-                      styles.calendarDayNumber,
-                      isSelected && styles.calendarTextSelected,
-                      isToday && !isSelected && styles.calendarTextToday
-                    ]}>
-                      {dayNumber}
-                    </Text>
+                    <Text style={[styles.calendarDayNumber, isSelected && styles.calendarTextSelected, isToday && !isSelected && styles.calendarTextToday]}>{dayNumber}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-          </View>
+          </Animated.View>
         </>
       )}
 
-      <View style={Platform.OS === 'ios' ? { height: 14 } : { height: 10 }} />
+      <Modal visible={isAddModalVisible} animationType="slide" transparent onRequestClose={handleCloseModal}>
+        <AddLessonForm 
+          visible={isAddModalVisible}
+          onClose={handleCloseModal} 
+          onSubmit={handleSubmitLesson}
+          currentDate={currentKey}
+          isoDate={currentKey}
+        />
+      </Modal>
+
+      <Modal visible={showMenuModal} animationType="fade" transparent onRequestClose={() => setShowMenuModal(false)}>
+          <TouchableOpacity style={styles.menuModalOverlay} activeOpacity={1} onPress={() => setShowMenuModal(false)}>
+            <Animated.View style={[styles.menuModalContent, { transform: [{ translateX: menuSlideAnim }] }]}>
+              <View style={styles.menuHeader}>
+                <Image
+                  source={require('../assets/images/logo.png')} 
+                  style={styles.menuLogoImage}
+                />
+                <Text style={styles.menuTitle}>TISU O'qituvchi</Text>
+              </View>
+
+              <View style={styles.menuDivider} />
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowMenuModal(false);
+                    if(onLogout){
+                      onLogout();
+                    }
+                  }}
+                >
+                  <MaterialIcons name="delete-forever" size={24} color="#FF3B3B" />
+                  <Text style={[styles.menuItemText, styles.menuItemDanger]}>Hisobni o'chirish</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowMenuModal(false);
+                    if (onLogout) {
+                      onLogout();
+                    }
+                  }}
+                >
+                  <MaterialIcons name="exit-to-app" size={24} color="#FF6B6B" />
+                  <Text style={[styles.menuItemText, styles.menuItemDanger]}>Chiqish</Text>
+                </TouchableOpacity>
+            </Animated.View>
+          </TouchableOpacity>
+        </Modal>
     </SafeAreaView>
   );
 };
@@ -395,18 +655,54 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   titleText: {
-    margin: 10,
     fontSize: 20,
     fontWeight: '800',
     color: '#1a1a1a',
   },
+  menuButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuIcon: {
+    width: 24,
+    height: 18,
+    justifyContent: 'space-between',
+  },
+  menuLine: {
+    width: '100%',
+    height: 3,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 2,
+  },
   list: { paddingHorizontal: 16, paddingBottom: 240 },
-  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { color: '#666' },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyIcon: {
+    fontSize: 72,
+    textAlign: 'center',
+  },
+  emptyText: {
+    color: '#666',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    color: '#999',
+    fontSize: 14,
+    textAlign: 'center',
+  },
   footerContainer: {
     position: 'absolute',
     left: 20,
@@ -457,9 +753,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  iconBtnSpacing: {
-    marginTop: 10,
-  },
+  iconBtnSpacing: { marginTop: 10 },
   iconFallback: {
     fontSize: 20,
     color: '#0B74FF',
@@ -564,5 +858,98 @@ const styles = StyleSheet.create({
   },
   calendarTextToday: {
     color: '#0B74FF',
+  },
+  fullScreenLoader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F4F6F9',
+  },
+  loaderCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#0B74FF',
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  loaderIcon: {
+    fontSize: 60,
+  },
+  loaderText: {
+    marginTop: 24,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#0B74FF',
+  },
+  menuModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  menuModalContent: {
+    width: 280,
+    backgroundColor: '#fff',
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+    paddingVertical: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 15,
+    height: '100%',  // minHeight: 300 o'rniga
+  },
+  menuHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+
+  menuLogoImage: {  // menuLogo o'rniga
+    width: 64,
+    height: 64,
+    marginBottom: 8,
+    resizeMode: 'contain',
+  },
+  menuTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1a1a1a',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#E5E5E5',
+    marginVertical: 12,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 16,
+  },
+  menuItemDanger: {
+    color: '#FF3B3B',
   },
 });
