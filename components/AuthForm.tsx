@@ -1,5 +1,5 @@
-// components/AuthForm.tsx
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,15 +11,12 @@ import {
   View,
 } from 'react-native';
 import { login, register } from '../api/auth';
+import { useAuth } from '../contexts/AuthContext';
 import InputField from './InputField';
 import PrettyAlert from './PrettyAlert';
 
-interface AuthFormProps {
-  onLogin: () => void;
-  onRegister: () => void;
-}
-
-const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
+const AuthForm: React.FC = () => {
+  const { checkAuth } = useAuth();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [loginValue, setLoginValue] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -43,7 +40,10 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
     try {
       setLoading(true);
       await login(loginValue, password);
-      onLogin();
+      // AuthContext ni yangilash
+      await checkAuth();
+      // TimeTableScreen ga o'tish
+      router.replace('/TimeTableScreen');
     } catch (error: any) {
       let errorMsg = error?.message || 'Tizimga kirishda xatolik yuz berdi';
       errorMsg = errorMsg.replace(/^Error:\s*/i, '');
@@ -76,7 +76,12 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
     try {
       setLoading(true);
       await register(fullName, loginValue, password);
-      onLogin();
+      // Ro'yxatdan o'tgandan keyin avtomatik login qilish
+      await login(loginValue, password);
+      // AuthContext ni yangilash
+      await checkAuth();
+      // TimeTableScreen ga o'tish
+      router.replace('/TimeTableScreen');
     } catch (error: any) {
       let errorMsg = error?.message || "Ro'yxatdan o'tishda xatolik yuz berdi";
       errorMsg = errorMsg.replace(/^Error:\s*/i, '');
@@ -98,6 +103,11 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
   const switchMode = () => {
     setIsLoginMode(!isLoginMode);
     setErrorVisible(false);
+    // Forma o'zgarganda maydonlarni tozalash
+    setLoginValue('');
+    setPassword('');
+    setConfirmPassword('');
+    setFullName('');
   };
 
   const isDisabled = isLoginMode

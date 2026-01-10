@@ -1,4 +1,6 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, AppStateStatus, Easing, FlatList, Image, Modal, Platform, RefreshControl, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { createLesson, fetchLessons } from '../api/lessons';
@@ -19,15 +21,6 @@ const formatReadable = (iso: string) => {
 
 const POLL_INTERVAL_MS = 30000;
 const DEBOUNCE_MS = 250;
-
-interface TimeTableScreenProps {
-  onLogout?: () => void;
-  onDeleteAccount?: () => void;
-  onExtra?: () => void;
-  extraPositionRightOffset?: number;
-}
-
-// Nuqtalar uchun animatsiya
 const Dot = ({ delay }: { delay: number }) => {
   const bounceAnim = useRef(new Animated.Value(0)).current;
 
@@ -65,7 +58,6 @@ const Dot = ({ delay }: { delay: number }) => {
   );
 };
 
-// Katta loading animatsiyasi komponenti
 const FullScreenLoader = () => {
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -138,7 +130,6 @@ const FullScreenLoader = () => {
   );
 };
 
-// Animatsiyali bo'sh holat komponenti
 const EmptyStateAnimated = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -146,7 +137,6 @@ const EmptyStateAnimated = () => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Fade va scale animatsiyasi
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -162,7 +152,6 @@ const EmptyStateAnimated = () => {
       }),
     ]).start();
 
-    // Sakrash animatsiyasi (cheksiz)
     Animated.loop(
       Animated.sequence([
         Animated.timing(bounceAnim, {
@@ -181,7 +170,6 @@ const EmptyStateAnimated = () => {
       ])
     ).start();
 
-    // Pulsatsiya animatsiyasi
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -226,7 +214,9 @@ const EmptyStateAnimated = () => {
   );
 };
 
-const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAccount, onExtra, extraPositionRightOffset = 12 }) => {
+const TimeTableScreen = () => {
+  const { logout } = useAuth();
+  const router = useRouter();
   const [dateKey, setDateKey] = useState(isoDate(new Date()));
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -242,7 +232,6 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
   const pollInterval = useRef<NodeJS.Timeout | null>(null);
   const appState = useRef(AppState.currentState);
 
-  // Animatsiya uchun
   const slideAnim = useRef(new Animated.Value(1000)).current;
   const menuSlideAnim = useRef(new Animated.Value(-300)).current;
 
@@ -309,7 +298,6 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
         });
       } catch (err: any) {
         if (err?.name === 'AbortError') {
-          // aborted
         } else {
           setError(err?.message ?? 'Darslarni yuklashda xatolik');
           setLessonsUi([]);
@@ -376,7 +364,6 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
     };
   }, [currentKey]);
 
-  // Date picker animatsiyasi
   useEffect(() => {
     if (showDatePicker) {
       Animated.spring(slideAnim, {
@@ -395,7 +382,6 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
     }
   }, [showDatePicker]);
 
-  // Menu modal animatsiyasi
   useEffect(() => {
     if (showMenuModal) {
       Animated.spring(menuSlideAnim, {
@@ -448,7 +434,7 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
       setIsAddModalVisible(false);
       loadLessons(currentKey);
     } catch (err: any) {
-      // error handling
+      //
     } finally {
       setLoading(false);
     }
@@ -458,6 +444,10 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
     setRefreshing(true);
     loadLessons(currentKey, { showLoader: false, force: true });
   };
+
+const handleExtra = () => {
+  loadLessons(currentKey, { force: true });
+};
 
   const generateCalendarDates = () => {
     const selected = new Date(currentKey);
@@ -511,15 +501,24 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyText}>{error}</Text>
         </View>
-      ) : lessonsUi.length === 0 ? (
-        <EmptyStateAnimated />
       ) : (
         <FlatList
           style={styles.list}
           data={lessonsUi}
           keyExtractor={it => it.id}
           renderItem={({ item }) => <TimeTableItem lesson={item} />}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={
+            isAddModalVisible
+              ? undefined
+              : <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          scrollEnabled={!isAddModalVisible}
+          ListEmptyComponent={<EmptyStateAnimated />}
+          contentContainerStyle={
+            lessonsUi.length === 0
+              ? { flexGrow: 1, justifyContent: 'center', paddingTop: 250 }
+              : undefined
+          }
         />
       )}
 
@@ -534,12 +533,6 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
           <TouchableOpacity style={styles.iconBtn} onPress={handleAddLesson}>
             <Text style={styles.addIconText}>+</Text>
           </TouchableOpacity>
-
-          {onExtra ? (
-            <TouchableOpacity style={[styles.iconBtn, styles.iconBtnSpacing]} onPress={onExtra}>
-              <Text style={styles.iconFallback}>⟳</Text>
-            </TouchableOpacity>
-          ) : null}
         </View>
       </View>
 
@@ -593,7 +586,7 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
         </>
       )}
 
-      <Modal visible={isAddModalVisible} animationType="slide" transparent onRequestClose={handleCloseModal}>
+      <Modal visible={isAddModalVisible} animationType="slide" transparent={true} onRequestClose={handleCloseModal}>
         <AddLessonForm 
           visible={isAddModalVisible}
           onClose={handleCloseModal} 
@@ -617,11 +610,9 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
               <View style={styles.menuDivider} />
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => {
+                  onPress={async () => {
                     setShowMenuModal(false);
-                    if(onLogout){
-                      onLogout();
-                    }
+                    await logout(router);
                   }}
                 >
                   <MaterialIcons name="delete-forever" size={24} color="#FF3B3B" />
@@ -629,11 +620,9 @@ const TimeTableScreen: React.FC<TimeTableScreenProps> = ({ onLogout, onDeleteAcc
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => {
+                  onPress={async () => {
                     setShowMenuModal(false);
-                    if (onLogout) {
-                      onLogout();
-                    }
+                    await logout(router);
                   }}
                 >
                   <MaterialIcons name="exit-to-app" size={24} color="#FF6B6B" />

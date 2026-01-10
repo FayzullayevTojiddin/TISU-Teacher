@@ -1,7 +1,7 @@
 // components/TimeTableItem.tsx - Minimal & Elegant
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RootStackParamList } from '../types/navigation';
@@ -26,10 +26,13 @@ const typeConfig: Record<string, { color: string; icon: string }> = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const TimeTableItem: React.FC<{ lesson: UiLesson }> = ({ lesson }) => {
-  const navigation = useNavigation<NavigationProp>();
+  const router = useRouter();
 
   const handlePress = () => {
-    navigation.navigate('Attendance', { lesson: lesson.raw ?? lesson });
+    router.push({
+      pathname: '/AttendanceScreen',
+      params: { lesson: JSON.stringify(lesson.raw ?? lesson) },
+    });
   };
 
   const config = typeConfig[lesson.raw.details.lesson_type] || { color: '#999', icon: '📄' };
@@ -40,12 +43,9 @@ const TimeTableItem: React.FC<{ lesson: UiLesson }> = ({ lesson }) => {
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      {/* Chap accent line */}
       <View style={[styles.accentLine, { backgroundColor: config.color }]} />
 
-      {/* Main content */}
       <View style={styles.mainContent}>
-        {/* Top section */}
         <View style={styles.topSection}>
           <View style={styles.emojiCircle}>
             <Text style={styles.emoji}>{config.icon}</Text>

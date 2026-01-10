@@ -1,8 +1,6 @@
-// AttendanceScreen.tsx - Modern Design
 import { Ionicons } from '@expo/vector-icons';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,13 +13,6 @@ import {
 } from 'react-native';
 import { saveAttendance } from '../api/attendance';
 import { fetchLesson } from '../api/lessons';
-import { RootStackParamList } from '../types/navigation';
-
-type AttendanceScreenRouteProp = RouteProp<RootStackParamList, 'Attendance'>;
-type AttendanceScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'Attendance'
->;
 
 type AttendanceStatus = boolean | null;
 
@@ -33,9 +24,12 @@ interface Student {
 }
 
 const AttendanceScreen: React.FC = () => {
-  const navigation = useNavigation<AttendanceScreenNavigationProp>();
-  const route = useRoute<AttendanceScreenRouteProp>();
-  const { lesson: passedLesson } = route.params;
+  const router = useRouter();
+  const { lesson: lessonParam } = useLocalSearchParams();
+  const passedLesson = React.useMemo(() => {
+    if (!lessonParam) return null;
+    return JSON.parse(lessonParam as string);
+  }, [lessonParam]);
 
   const [lesson, setLesson] = useState<any>(passedLesson);
   const [students, setStudents] = useState<Student[]>([]);
@@ -50,7 +44,6 @@ const AttendanceScreen: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        console.log(passedLesson);
         const lessonId = passedLesson.id || passedLesson.raw?.id;
         
         if (!lessonId) {
@@ -92,7 +85,7 @@ const AttendanceScreen: React.FC = () => {
     };
 
     loadLessonWithAttendances();
-  }, [passedLesson]);
+  }, [lessonParam]);
 
   const toggleAttendance = (studentId: string, status: boolean) => {
     setAttendance(prev => ({
@@ -142,8 +135,7 @@ const AttendanceScreen: React.FC = () => {
         image: photoUri,
       });
 
-      navigation.goBack();
-
+      router.back()
     } catch (err: any) {
       console.log('Save error:', err);
     } finally {
@@ -155,7 +147,7 @@ const AttendanceScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <View style={styles.headerCard}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Yuklanmoqda...</Text>
@@ -175,7 +167,7 @@ const AttendanceScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <View style={styles.headerCard}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Xatolik</Text>
@@ -188,7 +180,7 @@ const AttendanceScreen: React.FC = () => {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
             style={styles.retryButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => router.back()}
             activeOpacity={0.7}
           >
             <Text style={styles.retryButtonText}>Orqaga qaytish</Text>
@@ -212,7 +204,7 @@ const AttendanceScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.headerCard}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>

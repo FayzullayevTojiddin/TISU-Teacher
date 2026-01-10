@@ -2,15 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
+  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import {
   getBuilds,
   getLessonTypes,
@@ -226,11 +226,6 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
           />
         </View>
       )}
-      <ScrollView 
-        style={styles.dropdownScroll}
-        nestedScrollEnabled={true}
-        showsVerticalScrollIndicator={true}
-      >
         {loadingState ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color="#0B74FF" />
@@ -249,205 +244,210 @@ const AddLessonForm: React.FC<AddLessonFormProps> = ({
             </TouchableOpacity>
           ))
         )}
-      </ScrollView>
     </View>
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { resetForm(); onClose(); }}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalCard}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <View style={styles.modalIconCircle}>
-              <Text style={styles.modalIcon}>📝</Text>
-            </View>
-            <Text style={styles.modalTitle}>Yangi dars qo'shish</Text>
-            <View style={styles.dateBadge}>
-              <Text style={styles.dateText}>📅 {currentDate}</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalCard}>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <View style={styles.modalIconCircle}>
+                  <Text style={styles.modalIcon}>📝</Text>
+                </View>
+                <Text style={styles.modalTitle}>Yangi dars qo'shish</Text>
+                <View style={styles.dateBadge}>
+                  <Text style={styles.dateText}>📅 {currentDate}</Text>
+                </View>
+              </View>
+
+              {loading && (
+                <View style={styles.topLoadingBar}>
+                  <ActivityIndicator size="small" color="#0B74FF" />
+                </View>
+              )}
+                <KeyboardAwareScrollView
+                  style={styles.formScroll}
+                  showsVerticalScrollIndicator={false}
+                  enableOnAndroid
+                  keyboardShouldPersistTaps="handled"
+                >
+                {/* Bino */}
+                <View style={styles.fieldCard}>
+                  <Text style={styles.fieldLabel}>🏛️ Bino</Text>
+                  <TouchableOpacity
+                    style={styles.selectButton}
+                    onPress={() => setShowFacultyDropdown(!showFacultyDropdown)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.selectText, !selectedFaculty && styles.placeholderText]}>
+                      {selectedFaculty || 'Binoni tanlang'}
+                    </Text>
+                    <Text style={styles.arrowIcon}>{showFacultyDropdown ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+                  {showFacultyDropdown && renderDropdownContent(
+                    faculties,
+                    selectedFaculty,
+                    (f) => {
+                      setSelectedFaculty(f);
+                      setSelectedRoom(null);
+                      setShowFacultyDropdown(false);
+                    }
+                  )}
+                </View>
+
+                {/* Xona */}
+                <View style={styles.fieldCard}>
+                  <Text style={styles.fieldLabel}>🚪 Xona</Text>
+                  <TouchableOpacity
+                    style={styles.selectButton}
+                    onPress={openRoomDropdown}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.selectText, !selectedRoom && styles.placeholderText]}>
+                      {selectedRoom?.name || (selectedFaculty ? 'Xonani tanlang' : 'Avval binoni tanlang')}
+                    </Text>
+                    <Text style={styles.arrowIcon}>{showRoomDropdown ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+                  {showRoomDropdown && renderDropdownContent(
+                    roomsList,
+                    selectedRoom,
+                    (r) => {
+                      setSelectedRoom(r);
+                      setShowRoomDropdown(false);
+                    },
+                    loadingRooms,
+                    roomQuery,
+                    setRoomQuery,
+                    (r) => `${r.name}${r.build ? ` · ${r.build}` : ''}`
+                  )}
+                </View>
+
+                {/* Guruh */}
+                <View style={styles.fieldCard}>
+                  <Text style={styles.fieldLabel}>👥 Guruh</Text>
+                  <TouchableOpacity
+                    style={styles.selectButton}
+                    onPress={openGroupDropdown}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.selectText, !selectedGroup && styles.placeholderText]}>
+                      {selectedGroup?.name || 'Guruhni tanlang'}
+                    </Text>
+                    <Text style={styles.arrowIcon}>{showGroupDropdown ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+                  {showGroupDropdown && renderDropdownContent(
+                    groupsList,
+                    selectedGroup,
+                    (g) => {
+                      setSelectedGroup(g);
+                      setShowGroupDropdown(false);
+                    },
+                    loadingGroups,
+                    groupQuery,
+                    setGroupQuery
+                  )}
+                </View>
+
+                {/* Fan */}
+                <View style={styles.fieldCard}>
+                  <Text style={styles.fieldLabel}>📚 Fan</Text>
+                  <TouchableOpacity
+                    style={styles.selectButton}
+                    onPress={openSubjectDropdown}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.selectText, !selectedSubject && styles.placeholderText]}>
+                      {selectedSubject?.name || 'Fanni tanlang'}
+                    </Text>
+                    <Text style={styles.arrowIcon}>{showSubjectDropdown ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+                  {showSubjectDropdown && renderDropdownContent(
+                    subjectsList,
+                    selectedSubject,
+                    (s) => {
+                      setSelectedSubject(s);
+                      setShowSubjectDropdown(false);
+                    },
+                    loadingSubjects,
+                    subjectQuery,
+                    setSubjectQuery
+                  )}
+                </View>
+
+                <View style={styles.fieldCard}>
+                  <Text style={styles.fieldLabel}>📖 Dars turi</Text>
+                  <TouchableOpacity
+                    style={styles.selectButton}
+                    onPress={() => setShowTypeDropdown(!showTypeDropdown)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.selectText, !selectedType && styles.placeholderText]}>
+                      {selectedType?.name || 'Dars turini tanlang'}
+                    </Text>
+                    <Text style={styles.arrowIcon}>{showTypeDropdown ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+                  {showTypeDropdown && renderDropdownContent(
+                    lessonTypes,
+                    selectedType,
+                    (t) => {
+                      setSelectedType(t);
+                      setShowTypeDropdown(false);
+                    }
+                  )}
+                </View>
+
+                <View style={styles.fieldCard}>
+                  <Text style={styles.fieldLabel}>⏰ Para</Text>
+                  <TouchableOpacity
+                    style={styles.selectButton}
+                    onPress={() => setShowParaDropdown(!showParaDropdown)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.selectText, !selectedPara && styles.placeholderText]}>
+                      {selectedPara?.name || 'Parani tanlang'}
+                    </Text>
+                    <Text style={styles.arrowIcon}>{showParaDropdown ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+                  {showParaDropdown && renderDropdownContent(
+                    paras,
+                    selectedPara,
+                    (p) => {
+                      setSelectedPara(p);
+                      setShowParaDropdown(false);
+                    }
+                  )}
+                </View>
+                </KeyboardAwareScrollView>
+
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => { resetForm(); onClose(); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cancelButtonText}>❌ Bekor qilish</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.submitButton}
+                  onPress={handleSubmit}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>✅ Yaratish</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-
-          {loading && (
-            <View style={styles.topLoadingBar}>
-              <ActivityIndicator size="small" color="#0B74FF" />
-            </View>
-          )}
-
-          {/* Form Content */}
-          <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
-            {/* Bino */}
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>🏛️ Bino</Text>
-              <TouchableOpacity
-                style={styles.selectButton}
-                onPress={() => setShowFacultyDropdown(!showFacultyDropdown)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.selectText, !selectedFaculty && styles.placeholderText]}>
-                  {selectedFaculty || 'Binoni tanlang'}
-                </Text>
-                <Text style={styles.arrowIcon}>{showFacultyDropdown ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-              {showFacultyDropdown && renderDropdownContent(
-                faculties,
-                selectedFaculty,
-                (f) => {
-                  setSelectedFaculty(f);
-                  setSelectedRoom(null);
-                  setShowFacultyDropdown(false);
-                }
-              )}
-            </View>
-
-            {/* Xona */}
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>🚪 Xona</Text>
-              <TouchableOpacity
-                style={styles.selectButton}
-                onPress={openRoomDropdown}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.selectText, !selectedRoom && styles.placeholderText]}>
-                  {selectedRoom?.name || (selectedFaculty ? 'Xonani tanlang' : 'Avval binoni tanlang')}
-                </Text>
-                <Text style={styles.arrowIcon}>{showRoomDropdown ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-              {showRoomDropdown && renderDropdownContent(
-                roomsList,
-                selectedRoom,
-                (r) => {
-                  setSelectedRoom(r);
-                  setShowRoomDropdown(false);
-                },
-                loadingRooms,
-                roomQuery,
-                setRoomQuery,
-                (r) => `${r.name}${r.build ? ` · ${r.build}` : ''}`
-              )}
-            </View>
-
-            {/* Guruh */}
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>👥 Guruh</Text>
-              <TouchableOpacity
-                style={styles.selectButton}
-                onPress={openGroupDropdown}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.selectText, !selectedGroup && styles.placeholderText]}>
-                  {selectedGroup?.name || 'Guruhni tanlang'}
-                </Text>
-                <Text style={styles.arrowIcon}>{showGroupDropdown ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-              {showGroupDropdown && renderDropdownContent(
-                groupsList,
-                selectedGroup,
-                (g) => {
-                  setSelectedGroup(g);
-                  setShowGroupDropdown(false);
-                },
-                loadingGroups,
-                groupQuery,
-                setGroupQuery
-              )}
-            </View>
-
-            {/* Fan */}
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>📚 Fan</Text>
-              <TouchableOpacity
-                style={styles.selectButton}
-                onPress={openSubjectDropdown}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.selectText, !selectedSubject && styles.placeholderText]}>
-                  {selectedSubject?.name || 'Fanni tanlang'}
-                </Text>
-                <Text style={styles.arrowIcon}>{showSubjectDropdown ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-              {showSubjectDropdown && renderDropdownContent(
-                subjectsList,
-                selectedSubject,
-                (s) => {
-                  setSelectedSubject(s);
-                  setShowSubjectDropdown(false);
-                },
-                loadingSubjects,
-                subjectQuery,
-                setSubjectQuery
-              )}
-            </View>
-
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>📖 Dars turi</Text>
-              <TouchableOpacity
-                style={styles.selectButton}
-                onPress={() => setShowTypeDropdown(!showTypeDropdown)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.selectText, !selectedType && styles.placeholderText]}>
-                  {selectedType?.name || 'Dars turini tanlang'}
-                </Text>
-                <Text style={styles.arrowIcon}>{showTypeDropdown ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-              {showTypeDropdown && renderDropdownContent(
-                lessonTypes,
-                selectedType,
-                (t) => {
-                  setSelectedType(t);
-                  setShowTypeDropdown(false);
-                }
-              )}
-            </View>
-
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>⏰ Para</Text>
-              <TouchableOpacity
-                style={styles.selectButton}
-                onPress={() => setShowParaDropdown(!showParaDropdown)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.selectText, !selectedPara && styles.placeholderText]}>
-                  {selectedPara?.name || 'Parani tanlang'}
-                </Text>
-                <Text style={styles.arrowIcon}>{showParaDropdown ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-              {showParaDropdown && renderDropdownContent(
-                paras,
-                selectedPara,
-                (p) => {
-                  setSelectedPara(p);
-                  setShowParaDropdown(false);
-                }
-              )}
-            </View>
-          </ScrollView>
-
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => { resetForm(); onClose(); }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelButtonText}>❌ Bekor qilish</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>✅ Yaratish</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
+      </KeyboardAvoidingView>
   );
 };
 
@@ -457,21 +457,15 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'flex-end',
   },
   modalCard: {
+    flex: 1,
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 20,
     paddingHorizontal: 20,
     paddingBottom: 24,
-    maxHeight: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
   },
   modalHeader: {
     alignItems: 'center',

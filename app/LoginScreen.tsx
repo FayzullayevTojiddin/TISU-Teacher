@@ -1,20 +1,17 @@
-import React, { useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableWithoutFeedback, View } from 'react-native';
+import React from 'react';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  View
+} from 'react-native';
 import AuthForm from '../components/AuthForm';
 import Header from '../components/Header';
-import RegisteredScreen from './RegisterScreen';
 
-interface Props {
-  onLogin: () => void;
-  onRegister: () => void;
-}
-
-const LoginScreen: React.FC<Props> = ({ onLogin, onRegister }) => {
-  const [showRegistered, setShowRegistered] = useState(false);
-
-  if (showRegistered) {
-    return <RegisteredScreen />;
-  }
+const LoginScreen: React.FC = () => {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -22,9 +19,12 @@ const LoginScreen: React.FC<Props> = ({ onLogin, onRegister }) => {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 20}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <ScrollView 
+          contentContainerStyle={styles.container} 
+          keyboardShouldPersistTaps="handled"
+        >
           <Header />
-          <AuthForm onLogin={onLogin} onRegister={() => setShowRegistered(true)} />
+          <AuthForm />
           <View style={{ height: 40 }} />
         </ScrollView>
       </TouchableWithoutFeedback>

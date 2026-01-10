@@ -51,7 +51,6 @@ export const login = async (
       login: username,
       password: password,
     });
-    console.log(response);
     if (response.success && response.data.token) {
       await saveToken(response.data.token);
       return response.data;

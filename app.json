@@ -4,7 +4,7 @@
     "slug": "TISU-Teacher-App",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app-icon.png",
+    "icon": "./assets/images/logo.jpg",
     "scheme": "app.tisu.teacher-app",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -16,7 +16,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0047AB",
-        "foregroundImage": "./assets/images/logo.png"
+        "foregroundImage": "./assets/images/logo.jpg"
       },
       "package": "app.tisu.teacher",
       "versionCode": 1,
@@ -25,10 +25,10 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/logo.png"
+      "favicon": "./assets/images/logo.jpg"
     },
     "splash": {
-      "image": "./assets/images/logo.png",
+      "image": "./assets/images/logo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#0047AB"
     },
@@ -36,12 +36,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo.png",
+          "image": "./assets/images/logo.jpg",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#0047AB",
           "dark": {
-            "image": "./assets/images/logo.png",
+            "image": "./assets/images/logo.jpg",
             "backgroundColor": "#002F6C"
           }
         }
@@ -53,9 +53,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "8feaaed0-e0c8-461a-b9ef-21cc3d85f302"
+        "projectId": "ecc971a3-8409-4e16-9c29-c9b5ff1ec0ed"
       }
     },
-    "owner": "azamat_akoooo"
+    "owner": "tfayzullaev"
   }
 }
